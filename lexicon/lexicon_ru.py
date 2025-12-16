@@ -36,14 +36,15 @@ LEXICON_RU: dict[str, str] = {
     # --- Admin Lexicon ---
     'admin_command': "⚙️ Админ-панель",
     'admin_password_request': "Для доступа к админ-панели введите пароль:",
-    'admin_incorrect_password': "❌ Неверный пароль. Попробуйте снова или нажмите /start для возврата в главное меню.",
+    'admin_incorrect_password': "❌ Неверный пароль. Попробуйте снова или нажмите '⬅️ Назад в Главное меню админки' для возврата.",
     'admin_welcome': "👋 Добро пожаловать в админ-панель!",
     'admin_main_menu_text': "Выберите действие:",
     'admin_button_edit_requisites': "💳 Изменить реквизиты",
     'admin_button_change_password': "🔑 Изменить пароль админа",
     'admin_button_edit_personal_link': "🔗 Изменить ссылку личных реквизитов",
     'admin_button_manage_stopped_cards': "🛑 Управление стопнутыми картами",
-    'admin_button_back_to_main_menu': "↩️ Назад в Главное меню",
+    'admin_button_back_to_bot_main_menu': "↩️ Выйти из админки",
+    'admin_button_back_to_admin_main_menu': "⬅️ Назад в Главное меню админки",
     'admin_button_cancel': "Отмена",
     'admin_password_changed': "✅ Пароль успешно изменен!",
     'admin_new_password_request': "Введите новый пароль:",
@@ -62,7 +63,6 @@ LEXICON_RU: dict[str, str] = {
     'admin_requisite_updated_success': "✅ Реквизиты для карты {card_order} успешно обновлены!",
     'admin_invalid_amount': "❗️ Некорректное значение. Пожалуйста, введите число.",
     'admin_invalid_percentage': "❗️ Некорректное значение. Пожалуйста, введите число от 0 до 100.",
-    'admin_card_stopped_notification': "❗️Смена реквизитов: Карта - {card_order} {bank_name} 🇷🇺",
     'admin_no_changes': "👌 Изменений нет или вы отменили действие.",
 
     'admin_stopped_cards_menu': "Список стопнутых карт:\n{stopped_cards_list}\n\nВыберите действие:",
@@ -75,7 +75,8 @@ LEXICON_RU: dict[str, str] = {
     'admin_stopped_card_not_found': "❗️ Карта {card_number} не найдена в стоп-листе.",
 
     # --- Requisites Display ---
-    'direct_requisites_header': "ПРЯМЫЕ ПЕРЕВОДЫ 💳",
+    'requisites_info_footer': "При появлении актуальных реквизитов, вы сразу узнаете об этом в чате.",
+    'direct_requisites_header': "ПРЯМЫЕ ПЕРЕВОДЫ 💳\n\n{requisites_info_footer}",
     'card_template': (
         "\nКарта {card_order}:\n\n"
         "От {min_amount}₽ до {max_amount}₽\n\n"
@@ -85,5 +86,8 @@ LEXICON_RU: dict[str, str] = {
     ),
     'personal_requisites_contact': "\n\nДля выдачи личных реквизитов/ООО/Яндекс/Вбив/ИП писать - {link}",
     'stopped_cards_display': "\n\nСтопнутая карта: {stopped_cards_list_str}",
-}
 
+    # --- Team Notifications ---
+    'team_notification_card_stopped': "🛑 Стопнутая карта: {card_number}\n\n{requisites_info_footer}",
+    'team_notification_requisite_changed': "🔄 Смена реквизитов: карта - {card_number}\n\n{requisites_info_footer}", # НОВАЯ СТРОКА
+}

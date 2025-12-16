@@ -47,7 +47,7 @@ def admin_main_menu_keyboard() -> ReplyKeyboardMarkup:
         KeyboardButton(text=LEXICON_RU['admin_button_edit_personal_link'])
     )
     kb_builder.row(
-        KeyboardButton(text=LEXICON_RU['admin_button_back_to_main_menu'])
+        KeyboardButton(text=LEXICON_RU['admin_button_back_to_bot_main_menu'])
     )
     return kb_builder.as_markup(resize_keyboard=True)
 
@@ -59,7 +59,7 @@ def admin_choose_card_keyboard() -> InlineKeyboardMarkup:
         InlineKeyboardButton(text=LEXICON_RU['admin_button_card_template'].format(card_order=3), callback_data="edit_card_3")
     )
     kb_builder.row(
-        InlineKeyboardButton(text=LEXICON_RU['admin_button_back_to_main_menu'], callback_data="admin_main_menu")
+        InlineKeyboardButton(text=LEXICON_RU['admin_button_back_to_admin_main_menu'], callback_data="admin_main_menu")
     )
     return kb_builder.as_markup()
 
@@ -70,6 +70,11 @@ def admin_stopped_cards_menu_keyboard() -> ReplyKeyboardMarkup:
         KeyboardButton(text=LEXICON_RU['admin_button_remove_stopped_card'])
     )
     kb_builder.row(
-        KeyboardButton(text=LEXICON_RU['admin_button_back_to_main_menu'])
+        KeyboardButton(text=LEXICON_RU['admin_button_back_to_admin_main_menu'])
     )
     return kb_builder.as_markup(resize_keyboard=True)
+
+def admin_back_to_admin_menu_keyboard() -> ReplyKeyboardMarkup:
+    kb_builder = ReplyKeyboardBuilder()
+    kb_builder.add(KeyboardButton(text=LEXICON_RU['admin_button_back_to_admin_main_menu']))
+    return kb_builder.as_markup(resize_keyboard=True) # <<< ИСПРАВЛЕНО ЗДЕСЬ
