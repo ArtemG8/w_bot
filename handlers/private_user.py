@@ -1,7 +1,7 @@
 import datetime
 
 from aiogram import Router, F
-from aiogram.types import Message, ReplyKeyboardRemove, CallbackQuery
+from aiogram.types import Message, ReplyKeyboardRemove, CallbackQuery, FSInputFile # Import FSInputFile
 from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
 
@@ -25,7 +25,7 @@ async def process_start_command(message: Message, state: FSMContext):
     if user and user['registration_complete']:
         # Пользователь уже зарегистрирован, показываем главное меню
         await message.answer_photo(
-            photo="https://v3b.fal.media/files/b/0a8690dc/QSyhB55qF6iHyZgPpivYl.png",#images/main.png
+            photo=FSInputFile("images/main.png"), # Use FSInputFile for local files
             caption=LEXICON_RU['main_menu_welcome'].format(chat_link="https://t.me/+VOfK0G4A8n45ZGIy"),
             reply_markup=main_menu_keyboard()
         )
@@ -36,6 +36,9 @@ async def process_start_command(message: Message, state: FSMContext):
             reply_markup=continue_keyboard()
         )
         await state.set_state(Registration.waiting_for_experience)
+
+# ... (rest of your code)
+
 
 @router.message(F.text == LEXICON_RU['button_continue'], Registration.waiting_for_experience)
 async def process_continue_button(message: Message, state: FSMContext):
