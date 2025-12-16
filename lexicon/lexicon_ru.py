@@ -89,5 +89,19 @@ LEXICON_RU: dict[str, str] = {
 
     # --- Team Notifications ---
     'team_notification_card_stopped': "🛑 Стопнутая карта: {card_number}\n\n{requisites_info_footer}",
-    'team_notification_requisite_changed': "🔄 Смена реквизитов: карта - {card_number}\n\n{requisites_info_footer}", # НОВАЯ СТРОКА
+    'team_notification_requisite_changed': "🔄 Смена реквизитов: карта - {card_number}\n\n{requisites_info_footer}",
+
+    # --- Work Panel ---
+    'work_panel_choose_direction': "🤩 Выберите направление которое Вам нравится:",
+    'button_escort': "ESCORT 💋",
+    'button_trade_soon': "Trade (скоро) 📈",
+    'button_mreo': "MREO 💳",
+    'button_mtz_shop': "MTZ Shop 🌕",
+    'button_vape': "VAPE ⚡",
+    'work_panel_stub_message': "Заглушка", # Сообщение заглушки
+    'work_escort_stub': "💋 ESCORT - Заглушка",
+    'work_trade_stub': "📈 Trade (скоро) - Заглушка",
+    'work_mreo_stub': "💳 MREO - Заглушка",
+    'work_mtz_shop_stub': "🌕 MTZ Shop - Заглушка",
+    'work_vape_stub': "⚡ VAPE - Заглушка",
 }

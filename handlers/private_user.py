@@ -6,7 +6,7 @@ from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
 
 from lexicon.lexicon_ru import LEXICON_RU
-from keyboards.flow_kb import continue_keyboard, experience_keyboard, main_menu_keyboard, profile_inline_keyboard
+from keyboards.flow_kb import continue_keyboard, experience_keyboard, main_menu_keyboard, profile_inline_keyboard, work_panel_directions_keyboard
 from states.states import Registration, Profile
 from database.db import add_user, get_user, update_user_registration_data, update_user_unique_tag, get_all_requisites, get_personal_requisites_link, get_stopped_cards
 from config.config import Config
@@ -95,7 +95,10 @@ async def process_main_menu_button(message: Message):
 
 @router.message(F.text == LEXICON_RU['button_work_panel'])
 async def process_work_panel_button(message: Message):
-    await message.answer("Вы перешли в Ворк панель. (Заглушка)")
+    await message.answer(
+        LEXICON_RU['work_panel_choose_direction'],
+        reply_markup=work_panel_directions_keyboard()
+    )
 
 @router.message(F.text == LEXICON_RU['button_profile'])
 async def process_profile_button(message: Message):
@@ -169,4 +172,25 @@ async def process_new_unique_tag(message: Message, state: FSMContext):
     await message.answer(LEXICON_RU['unique_tag_saved'])
     await state.clear()
     await process_profile_button(message)
+
+# Обработчики для кнопок Work-панели (заглушки)
+@router.callback_query(F.data == "work_escort")
+async def process_work_escort_callback(callback: CallbackQuery):
+    await callback.answer()  # Убираем индикатор загрузки
+
+@router.callback_query(F.data == "work_trade")
+async def process_work_trade_callback(callback: CallbackQuery):
+    await callback.answer()  # Убираем индикатор загрузки
+
+@router.callback_query(F.data == "work_mreo")
+async def process_work_mreo_callback(callback: CallbackQuery):
+    await callback.answer()  # Убираем индикатор загрузки
+
+@router.callback_query(F.data == "work_mtz_shop")
+async def process_work_mtz_shop_callback(callback: CallbackQuery):
+    await callback.answer()  # Убираем индикатор загрузки
+
+@router.callback_query(F.data == "work_vape")
+async def process_work_vape_callback(callback: CallbackQuery):
+    await callback.answer()  # Убираем индикатор загрузки
 

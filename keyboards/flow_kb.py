@@ -77,4 +77,23 @@ def admin_stopped_cards_menu_keyboard() -> ReplyKeyboardMarkup:
 def admin_back_to_admin_menu_keyboard() -> ReplyKeyboardMarkup:
     kb_builder = ReplyKeyboardBuilder()
     kb_builder.add(KeyboardButton(text=LEXICON_RU['admin_button_back_to_admin_main_menu']))
-    return kb_builder.as_markup(resize_keyboard=True) # <<< ИСПРАВЛЕНО ЗДЕСЬ
+    return kb_builder.as_markup(resize_keyboard=True)
+
+# --- Work Panel Keyboards ---
+def work_panel_directions_keyboard() -> InlineKeyboardMarkup:
+    kb_builder = InlineKeyboardBuilder()
+    # Первый ряд: ESCORT и Trade
+    kb_builder.row(
+        InlineKeyboardButton(text=LEXICON_RU['button_escort'], callback_data="work_escort"),
+        InlineKeyboardButton(text=LEXICON_RU['button_trade_soon'], callback_data="work_trade")
+    )
+    # Второй ряд: MREO (одна кнопка по центру)
+    kb_builder.row(
+        InlineKeyboardButton(text=LEXICON_RU['button_mreo'], callback_data="work_mreo")
+    )
+    # Третий ряд: MTZ Shop и VAPE
+    kb_builder.row(
+        InlineKeyboardButton(text=LEXICON_RU['button_mtz_shop'], callback_data="work_mtz_shop"),
+        InlineKeyboardButton(text=LEXICON_RU['button_vape'], callback_data="work_vape")
+    )
+    return kb_builder.as_markup()

@@ -1,6 +1,5 @@
 import asyncio
 import logging
-
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.client.default import DefaultBotProperties
@@ -24,7 +23,6 @@ async def main():
     # Регистрация роутеров
     dp.include_router(user_handlers.router)
     dp.include_router(admin_handlers.router) # Добавлено
-
     # Запуск обработки обновлений
     logging.info("Starting bot...")
     await dp.start_polling(bot)
