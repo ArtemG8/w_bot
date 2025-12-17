@@ -8,7 +8,7 @@ from aiogram.fsm.context import FSMContext
 from lexicon.lexicon_ru import LEXICON_RU
 from keyboards.flow_kb import admin_main_menu_keyboard, admin_choose_card_keyboard, admin_stopped_cards_menu_keyboard, main_menu_keyboard, admin_back_to_admin_menu_keyboard
 from states.states import Admin
-from database.db import get_admin_password, update_admin_password, get_all_requisites, get_requisite_by_order, update_requisite, get_personal_requisites_link, update_personal_requisites_link, get_stopped_cards, add_stopped_card, remove_stopped_card
+from database.db import get_admin_password, update_admin_password, get_all_requisites, get_requisite_by_order, update_requisite, get_personal_requisites_link, update_personal_requisites_link, get_stopped_cards, add_stopped_card, remove_stopped_card, get_card_order_by_number
 from config.config import Config
 
 router = Router()
@@ -198,11 +198,11 @@ async def process_percentage(message: Message, state: FSMContext):
         # Отправка уведомления в чат команды, если банк изменился или номер
         if old_requisite and (old_requisite['bank_name'] != user_data['temp_bank_name'] or old_requisite['card_number'] != user_data['temp_card_number']):
             try:
-                # Используем НОВЫЙ номер карты и новую строку для уведомления о смене реквизитов
+                # Используем card_order вместо номера карты для уведомления о смене реквизитов
                 await message.bot.send_message(
                     chat_id=Config.TEAM_CHAT_ID,
-                    text=LEXICON_RU['team_notification_requisite_changed'].format( # <<<<<< ИЗМЕНЕНО
-                        card_number=user_data['temp_card_number'], # <<<<<< ИЗМЕНЕНО
+                    text=LEXICON_RU['team_notification_requisite_changed'].format(
+                        card_order=card_order,
                         requisites_info_footer=LEXICON_RU['requisites_info_footer']
                     )
                 )
@@ -269,8 +269,34 @@ async def remove_existing_stopped_card(message: Message, state: FSMContext):
     if card_number:
         stopped_cards = await get_stopped_cards()
         if any(card['card_number'] == card_number for card in stopped_cards):
+            # Получаем card_order по номеру карты для уведомления
+            card_order = await get_card_order_by_number(card_number)
             await remove_stopped_card(card_number)
             await message.answer(LEXICON_RU['admin_stopped_card_removed'].format(card_number=card_number), reply_markup=admin_back_to_admin_menu_keyboard())
+            
+            # Отправка уведомления в чат команды о выводе карты из стоп-листа
+            try:
+                if card_order:
+                    # Используем card_order если найден
+                    notification_text = LEXICON_RU['team_notification_card_removed_from_stop'].format(
+                        card_order=card_order,
+                        requisites_info_footer=LEXICON_RU['requisites_info_footer']
+                    )
+                else:
+                    # Если card_order не найден, используем номер карты
+                    logger.warning(f"Card order not found for card_number: {card_number}, using card_number in notification")
+                    notification_text = LEXICON_RU['team_notification_card_removed_from_stop_with_number'].format(
+                        card_number=card_number,
+                        requisites_info_footer=LEXICON_RU['requisites_info_footer']
+                    )
+                
+                await message.bot.send_message(
+                    chat_id=Config.TEAM_CHAT_ID,
+                    text=notification_text
+                )
+                logger.info(f"Notification sent to team chat about card {card_order or card_number} removed from stop list")
+            except Exception as e:
+                logger.error(f"Failed to send team chat notification on removing stopped card: {e}", exc_info=True)
         else:
             await message.answer(LEXICON_RU['admin_stopped_card_not_found'].format(card_number=card_number), reply_markup=admin_back_to_admin_menu_keyboard())
     else:

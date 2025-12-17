@@ -92,6 +92,12 @@ async def get_requisite_by_order(card_order: int) -> Record | None:
     '''
     return await Database.fetchrow(query, card_order)
 
+async def get_card_order_by_number(card_number: str) -> int | None:
+    query = '''
+    SELECT card_order FROM requisites WHERE card_number = $1;
+    '''
+    return await Database.fetchval(query, card_number)
+
 async def update_requisite(
     card_order: int,
     card_number: str,

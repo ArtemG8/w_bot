@@ -76,7 +76,7 @@ LEXICON_RU: dict[str, str] = {
 
     # --- Requisites Display ---
     'requisites_info_footer': "При появлении актуальных реквизитов, вы сразу узнаете об этом в чате.",
-    'direct_requisites_header': "ПРЯМЫЕ ПЕРЕВОДЫ 💳\n\n{requisites_info_footer}",
+    'direct_requisites_header': "ПРЯМЫЕ ПЕРЕВОДЫ 💳\n\n",
     'card_template': (
         "\nКарта {card_order}:\n\n"
         "От {min_amount}₽ до {max_amount}₽\n\n"
@@ -89,7 +89,9 @@ LEXICON_RU: dict[str, str] = {
 
     # --- Team Notifications ---
     'team_notification_card_stopped': "🛑 Стопнутая карта: {card_number}\n\n{requisites_info_footer}",
-    'team_notification_requisite_changed': "🔄 Смена реквизитов: карта - {card_number}\n\n{requisites_info_footer}",
+    'team_notification_requisite_changed': "🔄 Смена реквизитов: карта - {card_order}\n\n{requisites_info_footer}",
+    'team_notification_card_removed_from_stop': "✅ Карта {card_order} выведена из стоп-листа\n\n{requisites_info_footer}",
+    'team_notification_card_removed_from_stop_with_number': "✅ Карта {card_number} выведена из стоп-листа\n\n{requisites_info_footer}",
 
     # --- Work Panel ---
     'work_panel_choose_direction': "🤩 Выберите направление которое Вам нравится:",
