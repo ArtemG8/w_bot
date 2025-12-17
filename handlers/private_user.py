@@ -91,10 +91,10 @@ async def process_source_answer(message: Message, state: FSMContext):
     await message.answer(LEXICON_RU['application_accepted'])
     await state.clear()
 
-# Заглушки для главного меню и ворк-панели
+# Обработчик кнопки "Главное меню"
 @router.message(F.text == LEXICON_RU['button_main_menu'])
 async def process_main_menu_button(message: Message):
-    await message.answer("Вы перешли в Главное меню. (Заглушка)")
+    await message.answer(LEXICON_RU['main_menu_info'])
 
 @router.message(F.text == LEXICON_RU['button_work_panel'])
 async def process_work_panel_button(message: Message):
@@ -233,24 +233,8 @@ async def process_new_unique_tag(message: Message, state: FSMContext):
     await state.clear()
     await process_profile_button(message)
 
-# Обработчики для кнопок Work-панели (заглушки)
-@router.callback_query(F.data == "work_escort")
-async def process_work_escort_callback(callback: CallbackQuery):
-    await callback.answer()  # Убираем индикатор загрузки
-
+# Обработчик для кнопки Trade (заглушка)
 @router.callback_query(F.data == "work_trade")
 async def process_work_trade_callback(callback: CallbackQuery):
-    await callback.answer()  # Убираем индикатор загрузки
-
-@router.callback_query(F.data == "work_mreo")
-async def process_work_mreo_callback(callback: CallbackQuery):
-    await callback.answer()  # Убираем индикатор загрузки
-
-@router.callback_query(F.data == "work_mtz_shop")
-async def process_work_mtz_shop_callback(callback: CallbackQuery):
-    await callback.answer()  # Убираем индикатор загрузки
-
-@router.callback_query(F.data == "work_vape")
-async def process_work_vape_callback(callback: CallbackQuery):
     await callback.answer()  # Убираем индикатор загрузки
 

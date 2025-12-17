@@ -91,16 +91,16 @@ def work_panel_directions_keyboard() -> InlineKeyboardMarkup:
     kb_builder = InlineKeyboardBuilder()
     # Первый ряд: ESCORT и Trade
     kb_builder.row(
-        InlineKeyboardButton(text=LEXICON_RU['button_escort'], callback_data="work_escort"),
+        InlineKeyboardButton(text=LEXICON_RU['button_escort'], url="https://t.me/EscortAgensyAlert_bot"),
         InlineKeyboardButton(text=LEXICON_RU['button_trade_soon'], callback_data="work_trade")
     )
     # Второй ряд: MREO (одна кнопка по центру)
     kb_builder.row(
-        InlineKeyboardButton(text=LEXICON_RU['button_mreo'], callback_data="work_mreo")
+        InlineKeyboardButton(text=LEXICON_RU['button_mreo'], url="https://t.me/+Idshw1uE9KIzOWEy")
     )
-    # Третий ряд: MTZ Shop и VAPE
+    # Третий ряд: NARKO и VAPE
     kb_builder.row(
-        InlineKeyboardButton(text=LEXICON_RU['button_mtz_shop'], callback_data="work_mtz_shop"),
-        InlineKeyboardButton(text=LEXICON_RU['button_vape'], callback_data="work_vape")
+        InlineKeyboardButton(text=LEXICON_RU['button_mtz_shop'], url="https://t.me/Torion4200_bot"),
+        InlineKeyboardButton(text=LEXICON_RU['button_vape'], url="https://t.me/+-dSz7Jaqq_dmNDgy")
     )
     return kb_builder.as_markup()

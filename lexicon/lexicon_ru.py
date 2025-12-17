@@ -98,7 +98,7 @@ LEXICON_RU: dict[str, str] = {
     'button_escort': "ESCORT 💋",
     'button_trade_soon': "Trade (скоро) 📈",
     'button_mreo': "MREO 💳",
-    'button_mtz_shop': "MTZ Shop 🌕",
+    'button_mtz_shop': "NARKO 🌕",
     'button_vape': "VAPE ⚡",
     'work_panel_stub_message': "Заглушка", # Сообщение заглушки
     'work_escort_stub': "💋 ESCORT - Заглушка",
@@ -106,4 +106,24 @@ LEXICON_RU: dict[str, str] = {
     'work_mreo_stub': "💳 MREO - Заглушка",
     'work_mtz_shop_stub': "🌕 MTZ Shop - Заглушка",
     'work_vape_stub': "⚡ VAPE - Заглушка",
+    
+    # --- Main Menu ---
+    'main_menu_info': (
+        "<b> XN TEAM - ФОНД ПО БОРЬБЕ С БЕЗРАБОТИЦЕЙ</b>\n\n"
+        "<blockquote>👨‍💻 Администрация команды</blockquote>\n"
+        "└  <b><u>@Xntcteam -  Владелец/Чеки</u></b>\n\n"
+        "<blockquote> 📚 Обучение </blockquote>\n"
+        "  Кураторы проекта:\n"
+        "└ СКОРО\n\n"
+        "<blockquote>💸 Выплаты воркерам</blockquote>\n"
+        "<b>└ Криптой: <code>90% </code></b>\n"
+        "<b>└ Прямик: <code>80% </code></b>\n"
+        "<b>└ QR: <code>73/75%</code></b>\n"
+        "<b>└ Оплата с ТП: <code>60% </code></b>\n"
+        "<b>└ Лок/Скам: <code>20% </code> </b>\n\n"
+        "<blockquote>📊 Статистика проекта</blockquote>\n"
+        "<b>┣ Всего обработано:  <code>XXX профитов </code></b>\n"
+        "<b>┗ Общая сумма профитов: <code>XXXXX RUB </code></b>\n"
+        "(СТАТИСТИКА В РЕАЛИЗАЦИИ)"
+    ),
 }
