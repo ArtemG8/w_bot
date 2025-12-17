@@ -122,6 +122,11 @@ async def start_editing_card(callback: CallbackQuery, state: FSMContext):
 
 @router.message(Admin.waiting_for_card_number)
 async def process_card_number(message: Message, state: FSMContext):
+    # Проверка на reply кнопку "Назад в Главное меню админки"
+    if message.text == LEXICON_RU['admin_button_back_to_admin_main_menu']:
+        await _display_admin_main_menu(message, state)
+        return
+    
     card_number = message.text
     user_data = await state.get_data()
     card_order = user_data['current_card_order']
@@ -131,6 +136,11 @@ async def process_card_number(message: Message, state: FSMContext):
 
 @router.message(Admin.waiting_for_card_name)
 async def process_card_name(message: Message, state: FSMContext):
+    # Проверка на reply кнопку "Назад в Главное меню админки"
+    if message.text == LEXICON_RU['admin_button_back_to_admin_main_menu']:
+        await _display_admin_main_menu(message, state)
+        return
+    
     card_name = message.text
     user_data = await state.get_data()
     card_order = user_data['current_card_order']
@@ -140,6 +150,11 @@ async def process_card_name(message: Message, state: FSMContext):
 
 @router.message(Admin.waiting_for_bank_name)
 async def process_bank_name(message: Message, state: FSMContext):
+    # Проверка на reply кнопку "Назад в Главное меню админки"
+    if message.text == LEXICON_RU['admin_button_back_to_admin_main_menu']:
+        await _display_admin_main_menu(message, state)
+        return
+    
     bank_name = message.text
     user_data = await state.get_data()
     card_order = user_data['current_card_order']
@@ -149,6 +164,11 @@ async def process_bank_name(message: Message, state: FSMContext):
 
 @router.message(Admin.waiting_for_min_amount)
 async def process_min_amount(message: Message, state: FSMContext):
+    # Проверка на reply кнопку "Назад в Главное меню админки"
+    if message.text == LEXICON_RU['admin_button_back_to_admin_main_menu']:
+        await _display_admin_main_menu(message, state)
+        return
+    
     try:
         min_amount = int(message.text)
         user_data = await state.get_data()
@@ -161,6 +181,11 @@ async def process_min_amount(message: Message, state: FSMContext):
 
 @router.message(Admin.waiting_for_max_amount)
 async def process_max_amount(message: Message, state: FSMContext):
+    # Проверка на reply кнопку "Назад в Главное меню админки"
+    if message.text == LEXICON_RU['admin_button_back_to_admin_main_menu']:
+        await _display_admin_main_menu(message, state)
+        return
+    
     try:
         max_amount = int(message.text)
         user_data = await state.get_data()
@@ -173,6 +198,11 @@ async def process_max_amount(message: Message, state: FSMContext):
 
 @router.message(Admin.waiting_for_percentage)
 async def process_percentage(message: Message, state: FSMContext):
+    # Проверка на reply кнопку "Назад в Главное меню админки"
+    if message.text == LEXICON_RU['admin_button_back_to_admin_main_menu']:
+        await _display_admin_main_menu(message, state)
+        return
+    
     try:
         percentage = int(message.text)
         if not (0 <= percentage <= 100):
