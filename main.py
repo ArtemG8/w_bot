@@ -8,6 +8,7 @@ from config.config import Config
 from database.connection import init_db, Database
 from handlers import private_user as user_handlers
 from handlers import admin as admin_handlers # Добавлено
+from keyboards.set_menu import set_main_menu
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
@@ -23,7 +24,9 @@ async def main():
     # Регистрация роутеров
     dp.include_router(user_handlers.router)
     dp.include_router(admin_handlers.router) # Добавлено
+
     # Запуск обработки обновлений
+    await set_main_menu(bot)
     logging.info("Starting bot...")
     await dp.start_polling(bot)
     logging.info("Bot stopped.")

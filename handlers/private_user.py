@@ -2,7 +2,7 @@ import datetime
 
 from aiogram import Router, F
 from aiogram.types import Message, ReplyKeyboardRemove, CallbackQuery, FSInputFile # Import FSInputFile
-from aiogram.filters import CommandStart
+from aiogram.filters import CommandStart, Command
 from aiogram.fsm.context import FSMContext
 
 from lexicon.lexicon_ru import LEXICON_RU
@@ -125,27 +125,41 @@ async def process_profile_button(message: Message):
     else:
         await message.answer("Произошла ошибка при загрузке вашего профиля. Пожалуйста, попробуйте снова или напишите /start.")
 
-# Заглушка для inline-кнопки "Прямой реквизит"
-@router.callback_query(F.data == "direct_requisites")
-async def process_direct_requisites_callback(callback: CallbackQuery):
-    await callback.answer() # Убираем индикатор загрузки
-
+async def _build_direct_requisites_text() -> str:
     requisites = await get_all_requisites()
     personal_link = await get_personal_requisites_link()
     stopped_cards = await get_stopped_cards()
 
+    # Создаем множество номеров карт из стоп-листа для быстрой проверки
+    stopped_card_numbers = {card['card_number'] for card in stopped_cards} if stopped_cards else set()
+
     response_text = LEXICON_RU['direct_requisites_header']
 
     for req in requisites:
-        response_text += LEXICON_RU['card_template'].format(
-            card_order=req['card_order'],
-            min_amount=req['min_amount'],
-            max_amount=req['max_amount'],
-            card_number=req['card_number'],
-            card_name=req['card_name'],
-            bank_name=req['bank_name'],
-            percentage=req['percentage']
-        )
+        # Проверяем, находится ли карта в стоп-листе
+        is_stopped = req['card_number'] in stopped_card_numbers
+        
+        # Если карта в стоп-листе, заменяем данные на 0 или "-"
+        if is_stopped:
+            response_text += LEXICON_RU['card_template'].format(
+                card_order=req['card_order'],
+                min_amount=0,
+                max_amount=0,
+                card_number="-",
+                card_name="-",
+                bank_name="-",
+                percentage=0
+            )
+        else:
+            response_text += LEXICON_RU['card_template'].format(
+                card_order=req['card_order'],
+                min_amount=req['min_amount'],
+                max_amount=req['max_amount'],
+                card_number=req['card_number'],
+                card_name=req['card_name'],
+                bank_name=req['bank_name'],
+                percentage=req['percentage']
+            )
 
     if personal_link:
         response_text += LEXICON_RU['personal_requisites_contact'].format(link=personal_link)
@@ -154,7 +168,22 @@ async def process_direct_requisites_callback(callback: CallbackQuery):
         stopped_cards_list_str = ", ".join([card['card_number'] for card in stopped_cards])
         response_text += LEXICON_RU['stopped_cards_display'].format(stopped_cards_list_str=stopped_cards_list_str)
 
+    return response_text
+
+
+# Заглушка для inline-кнопки "Прямой реквизит"
+@router.callback_query(F.data == "direct_requisites")
+async def process_direct_requisites_callback(callback: CallbackQuery):
+    await callback.answer() # Убираем индикатор загрузки
+    response_text = await _build_direct_requisites_text()
     await callback.message.answer(response_text)
+
+
+# Команда /card — показать прямые реквизиты
+@router.message(Command("card"))
+async def process_direct_requisites_command(message: Message):
+    response_text = await _build_direct_requisites_text()
+    await message.answer(response_text)
 
 
 # Обработчик для inline-кнопки "Кастомный Тег"
