@@ -130,14 +130,42 @@ async def _build_direct_requisites_text() -> str:
     personal_link = await get_personal_requisites_link()
     stopped_cards = await get_stopped_cards()
 
-    # Создаем множество номеров карт из стоп-листа для быстрой проверки
-    stopped_card_numbers = {card['card_number'] for card in stopped_cards} if stopped_cards else set()
+    # Создаем множества для проверки стоп-листа
+    # Нормализуем номера: убираем пробелы и приводим к строке
+    stopped_card_numbers = {str(card['card_number']).strip().replace(' ', '') for card in stopped_cards} if stopped_cards else set()
+    
+    # Проверяем, есть ли в стоп-листе значения, которые могут быть card_order (числа 1, 2, 3)
+    stopped_card_orders = set()
+    for stopped_num in stopped_card_numbers:
+        try:
+            # Если значение можно преобразовать в число, это может быть card_order
+            order = int(stopped_num)
+            if 1 <= order <= 3:  # Валидные значения card_order
+                stopped_card_orders.add(order)
+        except ValueError:
+            pass  # Не число, значит это номер карты
 
     response_text = LEXICON_RU['direct_requisites_header']
 
     for req in requisites:
+        # Нормализуем номер карты из реквизитов для сравнения
+        req_card_number_normalized = str(req['card_number']).strip().replace(' ', '') if req['card_number'] else ''
+        
         # Проверяем, находится ли карта в стоп-листе
-        is_stopped = req['card_number'] in stopped_card_numbers
+        # 1. Проверка по card_order (если в стоп-листе число 1, 2, 3)
+        is_stopped_by_order = req['card_order'] in stopped_card_orders
+        
+        # 2. Проверка по номеру карты (точное совпадение)
+        is_stopped_by_number = req_card_number_normalized in stopped_card_numbers
+        
+        # 3. Проверка частичного совпадения (если номер из стоп-листа содержится в номере карты или наоборот)
+        is_stopped_by_partial = any(
+            stopped_num in req_card_number_normalized or req_card_number_normalized in stopped_num 
+            for stopped_num in stopped_card_numbers 
+            if stopped_num and req_card_number_normalized and len(stopped_num) > 1 and len(req_card_number_normalized) > 1
+        )
+        
+        is_stopped = is_stopped_by_order or is_stopped_by_number or is_stopped_by_partial
         
         # Если карта в стоп-листе, заменяем данные на 0 или "-"
         if is_stopped:

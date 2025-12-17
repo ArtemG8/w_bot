@@ -76,15 +76,15 @@ LEXICON_RU: dict[str, str] = {
 
     # --- Requisites Display ---
     'requisites_info_footer': "При появлении актуальных реквизитов, вы сразу узнаете об этом в чате.",
-    'direct_requisites_header': "ПРЯМЫЕ ПЕРЕВОДЫ 💳\n\n",
+    'direct_requisites_header': "ПРЯМЫЕ ПЕРЕВОДЫ 💳",
     'card_template': (
-        "\nКарта {card_order}:\n\n"
-        "От {min_amount}₽ до {max_amount}₽\n\n"
-        "🇷🇺 {card_number}\n"
+        "\n\nКарта {card_order}:\n\n"
+        "<b>От {min_amount}₽ до {max_amount}₽</b>\n\n"
+        "<b>🇷🇺 {card_number}</b>\n"
         "{card_name}\n"
-        "Банк - \"{bank_name}\"  | {percentage}%"
+        "<b>Банк - \"{bank_name}\"  | {percentage}%</b>"
     ),
-    'personal_requisites_contact': "\n\nДля выдачи личных реквизитов/ООО/Яндекс/Вбив/ИП писать - {link}",
+    'personal_requisites_contact': "\n\n<b>Для выдачи личных реквизитов/ООО/Яндекс/Вбив/ИП писать - {link}</b>",
     'stopped_cards_display': "\n\nСтопнутая карта: {stopped_cards_list_str}",
 
     # --- Team Notifications ---
