@@ -2,11 +2,11 @@ import logging
 
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove
-from aiogram.filters import Command
+from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
 
 from lexicon.lexicon_ru import LEXICON_RU
-from keyboards.flow_kb import admin_main_menu_keyboard, admin_choose_card_keyboard, admin_stopped_cards_menu_keyboard, main_menu_keyboard, admin_back_to_admin_menu_keyboard
+from keyboards.flow_kb import admin_main_menu_keyboard, admin_choose_card_keyboard, admin_stopped_cards_menu_keyboard, main_menu_keyboard, admin_back_to_admin_menu_keyboard, admin_back_to_admin_menu_inline_keyboard
 from states.states import Admin
 from database.db import get_admin_password, update_admin_password, get_all_requisites, get_requisite_by_order, update_requisite, get_personal_requisites_link, update_personal_requisites_link, get_stopped_cards, add_stopped_card, remove_stopped_card, get_card_order_by_number
 from config.config import Config
@@ -30,7 +30,6 @@ async def _display_admin_main_menu(message: Message, state: FSMContext):
                              Admin.waiting_for_min_amount,
                              Admin.waiting_for_max_amount,
                              Admin.waiting_for_percentage,
-                             Admin.manage_stopped_cards_menu,
                              Admin.waiting_for_stopped_card_to_add,
                              Admin.waiting_for_stopped_card_to_remove,
                              Admin.admin_main_menu
@@ -73,7 +72,7 @@ async def admin_back_to_bot_main_menu_handler(message: Message, state: FSMContex
 # --- Change Admin Password ---
 @router.message(F.text == LEXICON_RU['admin_button_change_password'], Admin.admin_main_menu)
 async def request_new_admin_password(message: Message, state: FSMContext):
-    await message.answer(LEXICON_RU['admin_new_password_request'], reply_markup=admin_back_to_admin_menu_keyboard())
+    await message.answer(LEXICON_RU['admin_new_password_request'], reply_markup=admin_back_to_admin_menu_inline_keyboard())
     await state.set_state(Admin.waiting_for_new_password)
 
 @router.message(Admin.waiting_for_new_password)
@@ -89,7 +88,7 @@ async def set_new_admin_password(message: Message, state: FSMContext):
 # --- Edit Personal Requisites Link ---
 @router.message(F.text == LEXICON_RU['admin_button_edit_personal_link'], Admin.admin_main_menu)
 async def request_personal_requisites_link(message: Message, state: FSMContext):
-    await message.answer(LEXICON_RU['admin_personal_link_request'], reply_markup=admin_back_to_admin_menu_keyboard())
+    await message.answer(LEXICON_RU['admin_personal_link_request'], reply_markup=admin_back_to_admin_menu_inline_keyboard())
     await state.set_state(Admin.waiting_for_personal_requisites_link)
 
 @router.message(Admin.waiting_for_personal_requisites_link)
@@ -231,6 +230,11 @@ async def show_stopped_cards_menu(message: Message, state: FSMContext):
         reply_markup=admin_stopped_cards_menu_keyboard()
     )
     await state.set_state(Admin.manage_stopped_cards_menu)
+
+# Обработчик кнопки "Назад" из меню управления стопнутыми картами
+@router.message(F.text == LEXICON_RU['admin_button_back_to_admin_main_menu'], Admin.manage_stopped_cards_menu)
+async def back_from_stopped_cards_menu(message: Message, state: FSMContext):
+    await _display_admin_main_menu(message, state)
 
 @router.message(F.text == LEXICON_RU['admin_button_add_stopped_card'], Admin.manage_stopped_cards_menu)
 async def request_stopped_card_to_add(message: Message, state: FSMContext):

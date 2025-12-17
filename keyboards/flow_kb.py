@@ -79,6 +79,13 @@ def admin_back_to_admin_menu_keyboard() -> ReplyKeyboardMarkup:
     kb_builder.add(KeyboardButton(text=LEXICON_RU['admin_button_back_to_admin_main_menu']))
     return kb_builder.as_markup(resize_keyboard=True)
 
+def admin_back_to_admin_menu_inline_keyboard() -> InlineKeyboardMarkup:
+    kb_builder = InlineKeyboardBuilder()
+    kb_builder.row(
+        InlineKeyboardButton(text=LEXICON_RU['admin_button_back_to_admin_main_menu'], callback_data="admin_main_menu")
+    )
+    return kb_builder.as_markup()
+
 # --- Work Panel Keyboards ---
 def work_panel_directions_keyboard() -> InlineKeyboardMarkup:
     kb_builder = InlineKeyboardBuilder()
