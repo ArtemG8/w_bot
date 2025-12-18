@@ -1,4 +1,5 @@
 import datetime
+import logging
 
 from aiogram import Router, F
 from aiogram.types import Message, ReplyKeyboardRemove, CallbackQuery, FSInputFile # Import FSInputFile
@@ -12,6 +13,7 @@ from database.db import add_user, get_user, update_user_registration_data, updat
 from config.config import Config
 
 router = Router()
+logger = logging.getLogger(__name__)
 
 @router.message(CommandStart())
 async def process_start_command(message: Message, state: FSMContext):
@@ -266,12 +268,22 @@ async def process_curators_callback(callback: CallbackQuery):
 @router.callback_query(F.data.startswith("select_curator_"))
 async def process_select_curator_callback(callback: CallbackQuery):
     await callback.answer() # Убираем индикатор загрузки
-    curator_username = callback.data.split("select_curator_")[1]
+    
+    # Извлекаем username из callback_data
+    curator_username = callback.data.replace("select_curator_", "", 1)
+    logger.info(f"Processing curator selection: username={curator_username}, callback_data={callback.data}")
+    
     curators = await get_curators()
+    logger.info(f"Available curators: {[c['username'] for c in curators]}")
+    
     curator_id = None
     for curator in curators:
-        if curator['username'] == curator_username:
+        # Сравниваем без учета регистра и удаляем @ если есть
+        curator_db_username = str(curator['username']).lower().lstrip('@')
+        curator_callback_username = curator_username.lower().lstrip('@')
+        if curator_db_username == curator_callback_username:
             curator_id = curator['user_id']
+            logger.info(f"Found curator: user_id={curator_id}, username={curator['username']}")
             break
 
     if curator_id:
@@ -284,21 +296,24 @@ async def process_select_curator_callback(callback: CallbackQuery):
         student_first_name = callback.from_user.first_name or "N/A"
         student_id = callback.from_user.id
         
+        logger.info(f"Sending notification to curator {curator_id} (@{curator_username}) about new student {student_id} (@{student_username})")
+        
         try:
+            notification_text = LEXICON_RU['curator_notification_new_student'].format(
+                student_username=student_username,
+                student_first_name=student_first_name,
+                student_id=student_id
+            )
             await callback.bot.send_message(
                 chat_id=curator_id,
-                text=LEXICON_RU['curator_notification_new_student'].format(
-                    student_username=student_username,
-                    student_first_name=student_first_name,
-                    student_id=student_id
-                )
+                text=notification_text
             )
+            logger.info(f"Successfully sent notification to curator {curator_id}")
         except Exception as e:
             # Логируем ошибку, но не прерываем выполнение
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.error(f"Failed to send notification to curator {curator_id}: {e}")
+            logger.error(f"Failed to send notification to curator {curator_id} (@{curator_username}): {e}", exc_info=True)
     else:
+        logger.warning(f"Curator with username {curator_username} not found in database. Available curators: {[c['username'] for c in curators]}")
         await callback.message.answer("Произошла ошибка при выборе куратора. Пожалуйста, попробуйте снова.")
 
 # --- Profit Check Handlers ---
