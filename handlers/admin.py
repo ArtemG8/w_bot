@@ -6,9 +6,9 @@ from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
 
 from lexicon.lexicon_ru import LEXICON_RU
-from keyboards.flow_kb import admin_main_menu_keyboard, admin_choose_card_keyboard, admin_stopped_cards_menu_keyboard, main_menu_keyboard, admin_back_to_admin_menu_keyboard, admin_back_to_admin_menu_inline_keyboard
+from keyboards.flow_kb import admin_main_menu_keyboard, admin_choose_card_keyboard, admin_stopped_cards_menu_keyboard, main_menu_keyboard, admin_back_to_admin_menu_keyboard, admin_back_to_admin_menu_inline_keyboard, admin_manage_curators_keyboard
 from states.states import Admin
-from database.db import get_admin_password, update_admin_password, get_all_requisites, get_requisite_by_order, update_requisite, get_personal_requisites_link, update_personal_requisites_link, get_stopped_cards, add_stopped_card, remove_stopped_card, get_card_order_by_number
+from database.db import get_admin_password, update_admin_password, get_all_requisites, get_requisite_by_order, update_requisite, get_personal_requisites_link, update_personal_requisites_link, get_stopped_cards, add_stopped_card, remove_stopped_card, get_card_order_by_number, get_profit_check, approve_profit_check, reject_profit_check, update_statistics, get_curators, add_curator, remove_curator, get_user_by_username
 from config.config import Config
 
 router = Router()
@@ -32,6 +32,9 @@ async def _display_admin_main_menu(message: Message, state: FSMContext):
                              Admin.waiting_for_percentage,
                              Admin.waiting_for_stopped_card_to_add,
                              Admin.waiting_for_stopped_card_to_remove,
+                             Admin.manage_curators_menu,
+                             Admin.waiting_for_curator_to_add,
+                             Admin.waiting_for_curator_to_remove,
                              Admin.admin_main_menu
                             ]))
 async def admin_back_to_admin_main_menu_reply_handler(message: Message, state: FSMContext):
@@ -337,3 +340,142 @@ async def remove_existing_stopped_card(message: Message, state: FSMContext):
         await message.answer(LEXICON_RU['admin_no_changes'], reply_markup=admin_back_to_admin_menu_keyboard())
     await _display_admin_main_menu(message, state)
 
+# --- Profit Check Approval/Rejection Handlers ---
+
+@router.callback_query(F.data.startswith("approve_profit_"))
+async def process_approve_profit_check(callback: CallbackQuery):
+    try:
+        check_id = int(callback.data.split("_")[-1])
+        profit_check = await get_profit_check(check_id)
+        
+        if not profit_check:
+            await callback.answer("Заявка не найдена", show_alert=True)
+            return
+        
+        if profit_check['status'] != 'pending':
+            await callback.answer("Заявка уже обработана", show_alert=True)
+            return
+        
+        # Одобряем заявку
+        approved_check = await approve_profit_check(check_id)
+        
+        if approved_check:
+            # Обновляем статистику
+            await update_statistics(approved_check['amount'])
+            
+            # Отправляем уведомление пользователю
+            user_id = approved_check['user_id']
+            try:
+                await callback.bot.send_message(
+                    chat_id=user_id,
+                    text=LEXICON_RU['profit_check_approved']
+                )
+            except Exception as e:
+                logger.error(f"Failed to send approval notification to user {user_id}: {e}")
+            
+            # Обновляем сообщение админа
+            await callback.message.edit_caption(
+                caption=callback.message.caption + "\n\n✅ Одобрено",
+                reply_markup=None
+            )
+            await callback.answer("Заявка одобрена")
+        else:
+            await callback.answer("Ошибка при одобрении заявки", show_alert=True)
+    except Exception as e:
+        logger.error(f"Error approving profit check: {e}", exc_info=True)
+        await callback.answer("Произошла ошибка", show_alert=True)
+
+@router.callback_query(F.data.startswith("reject_profit_"))
+async def process_reject_profit_check(callback: CallbackQuery):
+    try:
+        check_id = int(callback.data.split("_")[-1])
+        profit_check = await get_profit_check(check_id)
+        
+        if not profit_check:
+            await callback.answer("Заявка не найдена", show_alert=True)
+            return
+        
+        if profit_check['status'] != 'pending':
+            await callback.answer("Заявка уже обработана", show_alert=True)
+            return
+        
+        # Отклоняем заявку
+        await reject_profit_check(check_id)
+        
+        # Отправляем уведомление пользователю
+        user_id = profit_check['user_id']
+        try:
+            await callback.bot.send_message(
+                chat_id=user_id,
+                text=LEXICON_RU['profit_check_rejected']
+            )
+        except Exception as e:
+            logger.error(f"Failed to send rejection notification to user {user_id}: {e}")
+        
+        # Обновляем сообщение админа
+        await callback.message.edit_caption(
+            caption=callback.message.caption + "\n\n❌ Отклонено",
+            reply_markup=None
+        )
+        await callback.answer("Заявка отклонена")
+    except Exception as e:
+        logger.error(f"Error rejecting profit check: {e}", exc_info=True)
+        await callback.answer("Произошла ошибка", show_alert=True)
+
+# --- Manage Curators ---
+@router.message(F.text == LEXICON_RU['admin_button_manage_curators'], Admin.admin_main_menu)
+async def show_manage_curators_menu(message: Message, state: FSMContext):
+    curators = await get_curators()
+    if curators:
+        curators_list_str = "\n".join([f"- @{curator['username']}" for curator in curators])
+    else:
+        curators_list_str = "(нет кураторов)"
+
+    await message.answer(
+        LEXICON_RU['admin_curators_list'].format(curators_list=curators_list_str),
+        reply_markup=admin_manage_curators_keyboard()
+    )
+    await state.set_state(Admin.manage_curators_menu)
+
+@router.message(F.text == LEXICON_RU['admin_button_add_curator'], Admin.manage_curators_menu)
+async def request_curator_to_add(message: Message, state: FSMContext):
+    await message.answer(LEXICON_RU['admin_request_curator_to_add'], reply_markup=admin_back_to_admin_menu_keyboard())
+    await state.set_state(Admin.waiting_for_curator_to_add)
+
+@router.message(Admin.waiting_for_curator_to_add)
+async def add_new_curator(message: Message, state: FSMContext):
+    curator_username = message.text.strip().lstrip('@')
+    if curator_username:
+        # Получаем user_id куратора по его username
+        user = await get_user_by_username(curator_username)
+        if user:
+            await add_curator(user['user_id'], curator_username)
+            await message.answer(LEXICON_RU['admin_curator_added'].format(curator_username=curator_username), reply_markup=admin_back_to_admin_menu_keyboard())
+        else:
+            await message.answer(f"Пользователь с username @{curator_username} не найден. Убедитесь, что он запустил бота.", reply_markup=admin_back_to_admin_menu_keyboard())
+    else:
+        await message.answer(LEXICON_RU['admin_no_changes'], reply_markup=admin_back_to_admin_menu_keyboard())
+    await show_manage_curators_menu(message, state)
+
+@router.message(F.text == LEXICON_RU['admin_button_remove_curator'], Admin.manage_curators_menu)
+async def request_curator_to_remove(message: Message, state: FSMContext):
+    await message.answer(LEXICON_RU['admin_request_curator_to_remove'], reply_markup=admin_back_to_admin_menu_keyboard())
+    await state.set_state(Admin.waiting_for_curator_to_remove)
+
+@router.message(Admin.waiting_for_curator_to_remove)
+async def remove_existing_curator(message: Message, state: FSMContext):
+    curator_username = message.text.strip().lstrip('@')
+    if curator_username:
+        curators = await get_curators()
+        if any(curator['username'] == curator_username for curator in curators):
+            await remove_curator(curator_username)
+            await message.answer(LEXICON_RU['admin_curator_removed'].format(curator_username=curator_username), reply_markup=admin_back_to_admin_menu_keyboard())
+        else:
+            await message.answer(LEXICON_RU['admin_curator_not_found'].format(curator_username=curator_username), reply_markup=admin_back_to_admin_menu_keyboard())
+    else:
+        await message.answer(LEXICON_RU['admin_no_changes'], reply_markup=admin_back_to_admin_menu_keyboard())
+    await show_manage_curators_menu(message, state)
+
+@router.message(F.text == LEXICON_RU['admin_button_back_to_admin_main_menu'], Admin.manage_curators_menu)
+async def back_from_manage_curators_menu(message: Message, state: FSMContext):
+    await _display_admin_main_menu(message, state)

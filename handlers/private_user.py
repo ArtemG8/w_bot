@@ -6,9 +6,9 @@ from aiogram.filters import CommandStart, Command
 from aiogram.fsm.context import FSMContext
 
 from lexicon.lexicon_ru import LEXICON_RU
-from keyboards.flow_kb import continue_keyboard, experience_keyboard, main_menu_keyboard, profile_inline_keyboard, work_panel_directions_keyboard
-from states.states import Registration, Profile
-from database.db import add_user, get_user, update_user_registration_data, update_user_unique_tag, get_all_requisites, get_personal_requisites_link, get_stopped_cards
+from keyboards.flow_kb import continue_keyboard, experience_keyboard, main_menu_keyboard, profile_inline_keyboard, work_panel_directions_keyboard, main_menu_inline_keyboard, cancel_keyboard, curators_selection_keyboard
+from states.states import Registration, Profile, ProfitCheck
+from database.db import add_user, get_user, update_user_registration_data, update_user_unique_tag, get_all_requisites, get_personal_requisites_link, get_stopped_cards, get_statistics, create_profit_check, get_user_profit_statistics, get_curators, set_user_curator, get_user_curator, is_curator
 from config.config import Config
 
 router = Router()
@@ -94,7 +94,15 @@ async def process_source_answer(message: Message, state: FSMContext):
 # Обработчик кнопки "Главное меню"
 @router.message(F.text == LEXICON_RU['button_main_menu'])
 async def process_main_menu_button(message: Message):
-    await message.answer(LEXICON_RU['main_menu_info'])
+    stats = await get_statistics()
+    total_profits_count = stats['total_profits_count'] if stats else 0
+    total_profits_amount = stats['total_profits_amount'] if stats else 0
+    
+    menu_text = LEXICON_RU['main_menu_info'].format(
+        total_profits_count=total_profits_count,
+        total_profits_amount=total_profits_amount
+    )
+    await message.answer(menu_text, reply_markup=main_menu_inline_keyboard())
 
 @router.message(F.text == LEXICON_RU['button_work_panel'])
 async def process_work_panel_button(message: Message):
@@ -114,12 +122,19 @@ async def process_profile_button(message: Message):
         unique_tag = user.get('unique_tag')
         unique_tag_display = f"#{unique_tag}" if unique_tag else "(не установлен)" # Убрал # из заглушки
         current_date = datetime.date.today().strftime('%d.%m.%Y')
+        
+        # Получаем личную статистику профитов пользователя
+        user_stats = await get_user_profit_statistics(user_id)
+        user_profits_count = user_stats['total_profits_count']
+        user_profits_amount = user_stats['total_profits_amount']
 
         profile_text = LEXICON_RU['profile_text'].format(
             username=username,
             user_id=user_id,
             unique_tag=unique_tag_display,
-            current_date=current_date
+            current_date=current_date,
+            user_profits_count=user_profits_count,
+            user_profits_amount=user_profits_amount
         )
         await message.answer(profile_text, reply_markup=profile_inline_keyboard())
     else:
@@ -237,4 +252,185 @@ async def process_new_unique_tag(message: Message, state: FSMContext):
 @router.callback_query(F.data == "work_trade")
 async def process_work_trade_callback(callback: CallbackQuery):
     await callback.answer()  # Убираем индикатор загрузки
+
+@router.callback_query(F.data == "curators")
+async def process_curators_callback(callback: CallbackQuery):
+    await callback.answer() # Убираем индикатор загрузки
+    curators = await get_curators()
+    if curators:
+        curator_usernames = [curator['username'] for curator in curators]
+        await callback.message.answer(LEXICON_RU['curator_selection_message'], reply_markup=curators_selection_keyboard(curator_usernames))
+    else:
+        await callback.message.answer("На данный момент кураторы отсутствуют.")
+
+@router.callback_query(F.data.startswith("select_curator_"))
+async def process_select_curator_callback(callback: CallbackQuery):
+    await callback.answer() # Убираем индикатор загрузки
+    curator_username = callback.data.split("select_curator_")[1]
+    curators = await get_curators()
+    curator_id = None
+    for curator in curators:
+        if curator['username'] == curator_username:
+            curator_id = curator['user_id']
+            break
+
+    if curator_id:
+        await set_user_curator(callback.from_user.id, curator_id)
+        await callback.message.edit_reply_markup(reply_markup=None) # Убираем inline клавиатуру
+        await callback.message.answer(LEXICON_RU['curator_info_message'].format(curator_username=curator_username))
+        
+        # Отправляем уведомление куратору
+        student_username = callback.from_user.username or "N/A"
+        student_first_name = callback.from_user.first_name or "N/A"
+        student_id = callback.from_user.id
+        
+        try:
+            await callback.bot.send_message(
+                chat_id=curator_id,
+                text=LEXICON_RU['curator_notification_new_student'].format(
+                    student_username=student_username,
+                    student_first_name=student_first_name,
+                    student_id=student_id
+                )
+            )
+        except Exception as e:
+            # Логируем ошибку, но не прерываем выполнение
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to send notification to curator {curator_id}: {e}")
+    else:
+        await callback.message.answer("Произошла ошибка при выборе куратора. Пожалуйста, попробуйте снова.")
+
+# --- Profit Check Handlers ---
+
+# Обработчик inline кнопки "Проверка чека"
+@router.callback_query(F.data == "check_receipt")
+async def process_check_receipt_callback(callback: CallbackQuery, state: FSMContext):
+    await callback.message.edit_reply_markup(reply_markup=None)
+    await callback.message.answer(LEXICON_RU['profit_check_request_amount'])
+    await state.set_state(ProfitCheck.waiting_for_amount)
+    await callback.answer()
+
+# Обработчик отмены проверки чека
+@router.callback_query(F.data == "cancel_profit_check")
+async def process_cancel_profit_check_callback(callback: CallbackQuery, state: FSMContext):
+    await callback.message.edit_reply_markup(reply_markup=None)
+    await callback.message.answer(LEXICON_RU['profit_check_cancelled'])
+    await state.clear()
+    # Возвращаем в главное меню
+    stats = await get_statistics()
+    total_profits_count = stats['total_profits_count'] if stats else 0
+    total_profits_amount = stats['total_profits_amount'] if stats else 0
+    
+    menu_text = LEXICON_RU['main_menu_info'].format(
+        total_profits_count=total_profits_count,
+        total_profits_amount=total_profits_amount
+    )
+    await callback.message.answer(menu_text, reply_markup=main_menu_inline_keyboard())
+    await callback.answer()
+
+# Обработчик отмены через текст
+@router.message(ProfitCheck.waiting_for_photo, F.text == LEXICON_RU['button_cancel'])
+async def process_cancel_profit_check_text(message: Message, state: FSMContext):
+    await message.answer(LEXICON_RU['profit_check_cancelled'])
+    await state.clear()
+    # Возвращаем в главное меню
+    stats = await get_statistics()
+    total_profits_count = stats['total_profits_count'] if stats else 0
+    total_profits_amount = stats['total_profits_amount'] if stats else 0
+    
+    menu_text = LEXICON_RU['main_menu_info'].format(
+        total_profits_count=total_profits_count,
+        total_profits_amount=total_profits_amount
+    )
+    await message.answer(menu_text, reply_markup=main_menu_inline_keyboard())
+
+# Обработчик ввода суммы платежа
+@router.message(ProfitCheck.waiting_for_amount)
+async def process_profit_check_amount(message: Message, state: FSMContext):
+    try:
+        amount = int(message.text)
+        if amount == 0:
+            # Возврат в главное меню
+            await state.clear()
+            stats = await get_statistics()
+            total_profits_count = stats['total_profits_count'] if stats else 0
+            total_profits_amount = stats['total_profits_amount'] if stats else 0
+            
+            menu_text = LEXICON_RU['main_menu_info'].format(
+                total_profits_count=total_profits_count,
+                total_profits_amount=total_profits_amount
+            )
+            await message.answer(menu_text, reply_markup=main_menu_inline_keyboard())
+            return
+        elif amount > 0:
+            await state.update_data(amount=amount)
+            await message.answer(LEXICON_RU['profit_check_request_photo'], reply_markup=cancel_keyboard())
+            await state.set_state(ProfitCheck.waiting_for_photo)
+        else:
+            await message.answer(LEXICON_RU['profit_check_invalid_amount'])
+    except ValueError:
+        await message.answer(LEXICON_RU['profit_check_invalid_amount'])
+
+# Обработчик загрузки фото чека
+@router.message(ProfitCheck.waiting_for_photo, F.photo)
+async def process_profit_check_photo(message: Message, state: FSMContext):
+    photo = message.photo[-1]  # Берем фото наибольшего размера
+    photo_file_id = photo.file_id
+    
+    user_data = await state.get_data()
+    amount = user_data.get('amount')
+    
+    if not amount:
+        await message.answer("Произошла ошибка. Пожалуйста, начните заново.")
+        await state.clear()
+        return
+    
+    user_id = message.from_user.id
+    username = message.from_user.username or "N/A"
+    first_name = message.from_user.first_name or "N/A"
+    
+    # Сохраняем заявку в БД
+    check_id = await create_profit_check(user_id, amount, photo_file_id)
+    
+    # Отправляем заявку админам
+    admin_message_text = LEXICON_RU['admin_profit_check_notification'].format(
+        username=username,
+        user_id=user_id,
+        user_first_name=first_name,
+        amount=amount,
+        check_id=check_id
+    )
+    
+    # Создаем клавиатуру с кнопками одобрения/отклонения
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    from aiogram.utils.keyboard import InlineKeyboardBuilder
+    
+    admin_kb_builder = InlineKeyboardBuilder()
+    admin_kb_builder.row(
+        InlineKeyboardButton(
+            text=LEXICON_RU['admin_button_approve'],
+            callback_data=f"approve_profit_{check_id}"
+        ),
+        InlineKeyboardButton(
+            text=LEXICON_RU['admin_button_reject'],
+            callback_data=f"reject_profit_{check_id}"
+        )
+    )
+    
+    # Отправляем сообщение админам с фото
+    await message.bot.send_photo(
+        chat_id=Config.ADMIN_CHAT_ID,
+        photo=photo_file_id,
+        caption=admin_message_text,
+        reply_markup=admin_kb_builder.as_markup()
+    )
+    
+    await message.answer(LEXICON_RU['profit_check_submitted'])
+    await state.clear()
+
+# Обработчик, если пользователь отправил не фото
+@router.message(ProfitCheck.waiting_for_photo)
+async def process_profit_check_not_photo(message: Message, state: FSMContext):
+    await message.answer(LEXICON_RU['profit_check_need_photo'], reply_markup=cancel_keyboard())
 

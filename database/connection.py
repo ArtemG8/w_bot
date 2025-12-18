@@ -124,5 +124,61 @@ async def init_db():
     '''
     await Database.execute(create_stopped_cards_table_query)
 
+    # Таблица для заявок на проверку чека
+    create_profit_checks_table_query = '''
+    CREATE TABLE IF NOT EXISTS profit_checks (
+        id SERIAL PRIMARY KEY,
+        user_id BIGINT NOT NULL,
+        amount INTEGER NOT NULL,
+        photo_file_id VARCHAR(255),
+        status VARCHAR(20) DEFAULT 'pending',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        processed_at TIMESTAMP DEFAULT NULL
+    );
+    '''
+    await Database.execute(create_profit_checks_table_query)
+
+    # Таблица для статистики
+    create_statistics_table_query = '''
+    CREATE TABLE IF NOT EXISTS statistics (
+        id INTEGER PRIMARY KEY DEFAULT 1,
+        total_profits_count INTEGER DEFAULT 0,
+        total_profits_amount INTEGER DEFAULT 0
+    );
+    '''
+    await Database.execute(create_statistics_table_query)
+
+    # Инициализируем статистику, если её нет
+    insert_default_statistics_query = '''
+    INSERT INTO statistics (id, total_profits_count, total_profits_amount)
+    SELECT 1, 0, 0
+    WHERE NOT EXISTS (SELECT 1 FROM statistics WHERE id = 1);
+    '''
+    await Database.execute(insert_default_statistics_query)
+
+    create_curators_table_query = '''
+    CREATE TABLE IF NOT EXISTS curators (
+        id SERIAL PRIMARY KEY,
+        user_id BIGINT UNIQUE NOT NULL,
+        username VARCHAR(255) UNIQUE NOT NULL
+    );
+    '''
+    await Database.execute(create_curators_table_query)
+
+    add_curator_column_to_users_query = '''
+    DO $$
+    BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = 'users'::regclass AND attname = 'curator_id') THEN
+            ALTER TABLE users ADD COLUMN curator_id BIGINT DEFAULT NULL;
+            ALTER TABLE users ADD CONSTRAINT fk_curator
+                FOREIGN KEY (curator_id)
+                REFERENCES curators(user_id)
+                ON DELETE SET NULL;
+        END IF;
+    END
+    $$;
+    '''
+    await Database.execute(add_curator_column_to_users_query)
+
     print("Database tables initialized and checked.")
 

@@ -8,6 +8,10 @@ class Registration(StatesGroup):
 class Profile(StatesGroup):
     waiting_for_unique_tag = State()
 
+class ProfitCheck(StatesGroup):
+    waiting_for_amount = State()
+    waiting_for_photo = State()
+
 class Admin(StatesGroup):
     waiting_for_admin_password = State()
     admin_main_menu = State()
@@ -31,3 +35,8 @@ class Admin(StatesGroup):
     manage_stopped_cards_menu = State()
     waiting_for_stopped_card_to_add = State()
     waiting_for_stopped_card_to_remove = State()
+
+    # Manage curators
+    manage_curators_menu = State()
+    waiting_for_curator_to_add = State()
+    waiting_for_curator_to_remove = State()

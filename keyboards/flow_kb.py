@@ -35,12 +35,28 @@ def profile_inline_keyboard() -> InlineKeyboardMarkup:
     )
     return kb_builder.as_markup()
 
+def main_menu_inline_keyboard() -> InlineKeyboardMarkup:
+    kb_builder = InlineKeyboardBuilder()
+    kb_builder.row(
+        InlineKeyboardButton(text=LEXICON_RU['button_check_receipt'], callback_data="check_receipt"),
+        InlineKeyboardButton(text=LEXICON_RU['button_curators'], callback_data="curators")
+    )
+    return kb_builder.as_markup()
+
+def cancel_keyboard() -> InlineKeyboardMarkup:
+    kb_builder = InlineKeyboardBuilder()
+    kb_builder.row(
+        InlineKeyboardButton(text=LEXICON_RU['button_cancel'], callback_data="cancel_profit_check")
+    )
+    return kb_builder.as_markup()
+
 # --- Admin Keyboards ---
 def admin_main_menu_keyboard() -> ReplyKeyboardMarkup:
     kb_builder = ReplyKeyboardBuilder()
     kb_builder.row(
         KeyboardButton(text=LEXICON_RU['admin_button_edit_requisites']),
-        KeyboardButton(text=LEXICON_RU['admin_button_manage_stopped_cards'])
+        KeyboardButton(text=LEXICON_RU['admin_button_manage_stopped_cards']),
+        KeyboardButton(text=LEXICON_RU['admin_button_manage_curators'])
     )
     kb_builder.row(
         KeyboardButton(text=LEXICON_RU['admin_button_change_password']),
@@ -85,6 +101,23 @@ def admin_back_to_admin_menu_inline_keyboard() -> InlineKeyboardMarkup:
         InlineKeyboardButton(text=LEXICON_RU['admin_button_back_to_admin_main_menu'], callback_data="admin_main_menu")
     )
     return kb_builder.as_markup()
+
+def curators_selection_keyboard(curators: list[str]) -> InlineKeyboardMarkup:
+    kb_builder = InlineKeyboardBuilder()
+    for curator in curators:
+        kb_builder.row(InlineKeyboardButton(text=curator, callback_data=f"select_curator_{curator}"))
+    return kb_builder.as_markup()
+
+def admin_manage_curators_keyboard() -> ReplyKeyboardMarkup:
+    kb_builder = ReplyKeyboardBuilder()
+    kb_builder.row(
+        KeyboardButton(text=LEXICON_RU['admin_button_add_curator']),
+        KeyboardButton(text=LEXICON_RU['admin_button_remove_curator'])
+    )
+    kb_builder.row(
+        KeyboardButton(text=LEXICON_RU['admin_button_back_to_admin_main_menu'])
+    )
+    return kb_builder.as_markup(resize_keyboard=True)
 
 # --- Work Panel Keyboards ---
 def work_panel_directions_keyboard() -> InlineKeyboardMarkup:
