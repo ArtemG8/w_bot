@@ -248,3 +248,60 @@ async def get_user_curator(user_id: int) -> Record | None:
     WHERE u.user_id = $1;
     '''
     return await Database.fetchrow(query, user_id)
+
+# --- Staff related functions ---
+
+async def add_staff(user_id: int, username: str, position: str) -> None:
+    query = '''
+    UPDATE users
+    SET role = 'staff', position = $1
+    WHERE user_id = $2;
+    '''
+    await Database.execute(query, position, user_id)
+
+async def remove_staff(user_id: int) -> None:
+    query = '''
+    UPDATE users
+    SET role = NULL, position = NULL, is_on_shift = FALSE
+    WHERE user_id = $1;
+    '''
+    await Database.execute(query, user_id)
+
+async def get_staff() -> list[Record]:
+    query = '''
+    SELECT user_id, username, first_name, position, is_on_shift
+    FROM users
+    WHERE role = 'staff'
+    ORDER BY username;
+    '''
+    return await Database.fetch(query)
+
+async def is_staff(user_id: int) -> bool:
+    query = '''
+    SELECT EXISTS(SELECT 1 FROM users WHERE user_id = $1 AND role = 'staff');
+    '''
+    return await Database.fetchval(query, user_id)
+
+async def get_staff_by_username(username: str) -> Record | None:
+    query = '''
+    SELECT * FROM users WHERE username = $1 AND role = 'staff';
+    '''
+    return await Database.fetchrow(query, username)
+
+async def toggle_shift_status(user_id: int) -> bool:
+    """Переключает статус смены и возвращает новый статус"""
+    query = '''
+    UPDATE users
+    SET is_on_shift = NOT is_on_shift
+    WHERE user_id = $1
+    RETURNING is_on_shift;
+    '''
+    return await Database.fetchval(query, user_id)
+
+async def get_staff_shift_status(user_id: int) -> bool:
+    """Возвращает текущий статус смены сотрудника"""
+    query = '''
+    SELECT is_on_shift FROM users WHERE user_id = $1;
+    '''
+    result = await Database.fetchval(query, user_id)
+    return result if result is not None else False

@@ -6,9 +6,9 @@ from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
 
 from lexicon.lexicon_ru import LEXICON_RU
-from keyboards.flow_kb import admin_main_menu_keyboard, admin_choose_card_keyboard, admin_stopped_cards_menu_keyboard, main_menu_keyboard, admin_back_to_admin_menu_keyboard, admin_back_to_admin_menu_inline_keyboard, admin_manage_curators_keyboard
+from keyboards.flow_kb import admin_main_menu_keyboard, admin_choose_card_keyboard, admin_stopped_cards_menu_keyboard, main_menu_keyboard, admin_back_to_admin_menu_keyboard, admin_back_to_admin_menu_inline_keyboard, admin_manage_curators_keyboard, admin_manage_staff_keyboard
 from states.states import Admin
-from database.db import get_admin_password, update_admin_password, get_all_requisites, get_requisite_by_order, update_requisite, get_personal_requisites_link, update_personal_requisites_link, get_stopped_cards, add_stopped_card, remove_stopped_card, get_card_order_by_number, get_profit_check, approve_profit_check, reject_profit_check, update_statistics, get_curators, add_curator, remove_curator, get_user_by_username, get_user
+from database.db import get_admin_password, update_admin_password, get_all_requisites, get_requisite_by_order, update_requisite, get_personal_requisites_link, update_personal_requisites_link, get_stopped_cards, add_stopped_card, remove_stopped_card, get_card_order_by_number, get_profit_check, approve_profit_check, reject_profit_check, update_statistics, get_curators, add_curator, remove_curator, get_user_by_username, get_user, get_staff, add_staff, remove_staff, is_staff, get_staff_by_username
 from config.config import Config
 
 router = Router()
@@ -35,6 +35,10 @@ async def _display_admin_main_menu(message: Message, state: FSMContext):
                              Admin.manage_curators_menu,
                              Admin.waiting_for_curator_to_add,
                              Admin.waiting_for_curator_to_remove,
+                             Admin.manage_staff_menu,
+                             Admin.waiting_for_staff_username_to_add,
+                             Admin.waiting_for_staff_position_to_add,
+                             Admin.waiting_for_staff_username_to_remove,
                              Admin.admin_main_menu
                             ]))
 async def admin_back_to_admin_main_menu_reply_handler(message: Message, state: FSMContext):
@@ -497,4 +501,101 @@ async def remove_existing_curator(message: Message, state: FSMContext):
 
 @router.message(F.text == LEXICON_RU['admin_button_back_to_admin_main_menu'], Admin.manage_curators_menu)
 async def back_from_manage_curators_menu(message: Message, state: FSMContext):
+    await _display_admin_main_menu(message, state)
+
+# --- Manage Staff ---
+@router.message(F.text == LEXICON_RU['admin_button_manage_staff'], Admin.admin_main_menu)
+async def show_manage_staff_menu(message: Message, state: FSMContext):
+    staff = await get_staff()
+    if staff:
+        staff_list_str = "\n".join([f"- @{s['username']} ({s['position']})" for s in staff])
+    else:
+        staff_list_str = "(нет сотрудников)"
+
+    await message.answer(
+        LEXICON_RU['admin_staff_list'].format(staff_list=staff_list_str),
+        reply_markup=admin_manage_staff_keyboard()
+    )
+    await state.set_state(Admin.manage_staff_menu)
+
+@router.message(F.text == LEXICON_RU['admin_button_add_staff'], Admin.manage_staff_menu)
+async def request_staff_username_to_add(message: Message, state: FSMContext):
+    await message.answer(LEXICON_RU['admin_request_staff_username'], reply_markup=admin_back_to_admin_menu_keyboard())
+    await state.set_state(Admin.waiting_for_staff_username_to_add)
+
+@router.message(Admin.waiting_for_staff_username_to_add)
+async def process_staff_username_to_add(message: Message, state: FSMContext):
+    # Проверка на reply кнопку "Назад в Главное меню админки"
+    if message.text == LEXICON_RU['admin_button_back_to_admin_main_menu']:
+        await show_manage_staff_menu(message, state)
+        return
+    
+    staff_username = message.text.strip().lstrip('@')
+    if staff_username:
+        # Проверяем, существует ли пользователь
+        user = await get_user_by_username(staff_username)
+        if user:
+            # Проверяем, не является ли уже сотрудником
+            if await is_staff(user['user_id']):
+                await message.answer(LEXICON_RU['admin_staff_already_staff'].format(username=staff_username), reply_markup=admin_back_to_admin_menu_keyboard())
+                await show_manage_staff_menu(message, state)
+            else:
+                # Сохраняем username и запрашиваем должность
+                await state.update_data(temp_staff_username=staff_username)
+                await message.answer(LEXICON_RU['admin_request_staff_position'], reply_markup=admin_back_to_admin_menu_keyboard())
+                await state.set_state(Admin.waiting_for_staff_position_to_add)
+        else:
+            await message.answer(LEXICON_RU['admin_staff_not_found'].format(username=staff_username), reply_markup=admin_back_to_admin_menu_keyboard())
+            await show_manage_staff_menu(message, state)
+    else:
+        await message.answer(LEXICON_RU['admin_no_changes'], reply_markup=admin_back_to_admin_menu_keyboard())
+        await show_manage_staff_menu(message, state)
+
+@router.message(Admin.waiting_for_staff_position_to_add)
+async def process_staff_position_to_add(message: Message, state: FSMContext):
+    # Проверка на reply кнопку "Назад в Главное меню админки"
+    if message.text == LEXICON_RU['admin_button_back_to_admin_main_menu']:
+        await show_manage_staff_menu(message, state)
+        return
+    
+    position = message.text.strip()
+    if position:
+        user_data = await state.get_data()
+        staff_username = user_data['temp_staff_username']
+        user = await get_user_by_username(staff_username)
+        if user:
+            await add_staff(user['user_id'], staff_username, position)
+            await message.answer(LEXICON_RU['admin_staff_added'].format(username=staff_username, position=position), reply_markup=admin_back_to_admin_menu_keyboard())
+        else:
+            await message.answer(LEXICON_RU['admin_staff_not_found'].format(username=staff_username), reply_markup=admin_back_to_admin_menu_keyboard())
+    else:
+        await message.answer(LEXICON_RU['admin_no_changes'], reply_markup=admin_back_to_admin_menu_keyboard())
+    await show_manage_staff_menu(message, state)
+
+@router.message(F.text == LEXICON_RU['admin_button_remove_staff'], Admin.manage_staff_menu)
+async def request_staff_username_to_remove(message: Message, state: FSMContext):
+    await message.answer(LEXICON_RU['admin_request_staff_username'], reply_markup=admin_back_to_admin_menu_keyboard())
+    await state.set_state(Admin.waiting_for_staff_username_to_remove)
+
+@router.message(Admin.waiting_for_staff_username_to_remove)
+async def remove_existing_staff(message: Message, state: FSMContext):
+    # Проверка на reply кнопку "Назад в Главное меню админки"
+    if message.text == LEXICON_RU['admin_button_back_to_admin_main_menu']:
+        await show_manage_staff_menu(message, state)
+        return
+    
+    staff_username = message.text.strip().lstrip('@')
+    if staff_username:
+        staff_member = await get_staff_by_username(staff_username)
+        if staff_member:
+            await remove_staff(staff_member['user_id'])
+            await message.answer(LEXICON_RU['admin_staff_removed'].format(username=staff_username), reply_markup=admin_back_to_admin_menu_keyboard())
+        else:
+            await message.answer(LEXICON_RU['admin_staff_not_found'].format(username=staff_username), reply_markup=admin_back_to_admin_menu_keyboard())
+    else:
+        await message.answer(LEXICON_RU['admin_no_changes'], reply_markup=admin_back_to_admin_menu_keyboard())
+    await show_manage_staff_menu(message, state)
+
+@router.message(F.text == LEXICON_RU['admin_button_back_to_admin_main_menu'], Admin.manage_staff_menu)
+async def back_from_manage_staff_menu(message: Message, state: FSMContext):
     await _display_admin_main_menu(message, state)

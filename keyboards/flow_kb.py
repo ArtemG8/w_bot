@@ -59,7 +59,10 @@ def admin_main_menu_keyboard() -> ReplyKeyboardMarkup:
         KeyboardButton(text=LEXICON_RU['admin_button_manage_curators'])
     )
     kb_builder.row(
-        KeyboardButton(text=LEXICON_RU['admin_button_change_password']),
+        KeyboardButton(text=LEXICON_RU['admin_button_manage_staff']),
+        KeyboardButton(text=LEXICON_RU['admin_button_change_password'])
+    )
+    kb_builder.row(
         KeyboardButton(text=LEXICON_RU['admin_button_edit_personal_link'])
     )
     kb_builder.row(
@@ -117,6 +120,26 @@ def admin_manage_curators_keyboard() -> ReplyKeyboardMarkup:
     kb_builder.row(
         KeyboardButton(text=LEXICON_RU['admin_button_back_to_admin_main_menu'])
     )
+    return kb_builder.as_markup(resize_keyboard=True)
+
+def admin_manage_staff_keyboard() -> ReplyKeyboardMarkup:
+    kb_builder = ReplyKeyboardBuilder()
+    kb_builder.row(
+        KeyboardButton(text=LEXICON_RU['admin_button_add_staff']),
+        KeyboardButton(text=LEXICON_RU['admin_button_remove_staff'])
+    )
+    kb_builder.row(
+        KeyboardButton(text=LEXICON_RU['admin_button_back_to_admin_main_menu'])
+    )
+    return kb_builder.as_markup(resize_keyboard=True)
+
+def staff_panel_keyboard(is_on_shift: bool) -> ReplyKeyboardMarkup:
+    kb_builder = ReplyKeyboardBuilder()
+    if is_on_shift:
+        kb_builder.add(KeyboardButton(text=LEXICON_RU['staff_button_end_shift']))
+    else:
+        kb_builder.add(KeyboardButton(text=LEXICON_RU['staff_button_start_shift']))
+    kb_builder.row(KeyboardButton(text=LEXICON_RU['staff_button_exit']))
     return kb_builder.as_markup(resize_keyboard=True)
 
 # --- Work Panel Keyboards ---

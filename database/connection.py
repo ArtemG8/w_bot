@@ -180,5 +180,23 @@ async def init_db():
     '''
     await Database.execute(add_curator_column_to_users_query)
 
+    # Добавляем поля для staff
+    add_staff_columns_query = '''
+    DO $$
+    BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = 'users'::regclass AND attname = 'role') THEN
+            ALTER TABLE users ADD COLUMN role VARCHAR(50) DEFAULT NULL;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = 'users'::regclass AND attname = 'position') THEN
+            ALTER TABLE users ADD COLUMN position VARCHAR(255) DEFAULT NULL;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = 'users'::regclass AND attname = 'is_on_shift') THEN
+            ALTER TABLE users ADD COLUMN is_on_shift BOOLEAN DEFAULT FALSE;
+        END IF;
+    END
+    $$;
+    '''
+    await Database.execute(add_staff_columns_query)
+
     print("Database tables initialized and checked.")
 

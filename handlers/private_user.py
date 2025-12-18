@@ -7,9 +7,9 @@ from aiogram.filters import CommandStart, Command
 from aiogram.fsm.context import FSMContext
 
 from lexicon.lexicon_ru import LEXICON_RU
-from keyboards.flow_kb import continue_keyboard, experience_keyboard, main_menu_keyboard, profile_inline_keyboard, work_panel_directions_keyboard, main_menu_inline_keyboard, cancel_keyboard, curators_selection_keyboard
+from keyboards.flow_kb import continue_keyboard, experience_keyboard, main_menu_keyboard, profile_inline_keyboard, work_panel_directions_keyboard, main_menu_inline_keyboard, cancel_keyboard, curators_selection_keyboard, staff_panel_keyboard
 from states.states import Registration, Profile, ProfitCheck
-from database.db import add_user, get_user, update_user_registration_data, update_user_unique_tag, get_all_requisites, get_personal_requisites_link, get_stopped_cards, get_statistics, create_profit_check, get_user_profit_statistics, get_curators, set_user_curator, get_user_curator, is_curator
+from database.db import add_user, get_user, update_user_registration_data, update_user_unique_tag, get_all_requisites, get_personal_requisites_link, get_stopped_cards, get_statistics, create_profit_check, get_user_profit_statistics, get_curators, set_user_curator, get_user_curator, is_curator, is_staff, toggle_shift_status, get_staff_shift_status
 from config.config import Config
 
 router = Router()
@@ -448,4 +448,114 @@ async def process_profit_check_photo(message: Message, state: FSMContext):
 @router.message(ProfitCheck.waiting_for_photo)
 async def process_profit_check_not_photo(message: Message, state: FSMContext):
     await message.answer(LEXICON_RU['profit_check_need_photo'], reply_markup=cancel_keyboard())
+
+# --- Staff Panel Handlers ---
+
+@router.message(Command("staff"))
+async def process_staff_command(message: Message):
+    user_id = message.from_user.id
+    username = message.from_user.username or "N/A"
+    
+    # Проверяем, является ли пользователь сотрудником
+    if not await is_staff(user_id):
+        await message.answer(LEXICON_RU['staff_not_staff'])
+        return
+    
+    # Получаем текущий статус смены
+    is_on_shift = await get_staff_shift_status(user_id)
+    
+    # Получаем информацию о пользователе для получения должности
+    user = await get_user(user_id)
+    position = user.get('position', 'Сотрудник') if user else 'Сотрудник'
+    
+    await message.answer(
+        LEXICON_RU['staff_welcome'],
+        reply_markup=staff_panel_keyboard(is_on_shift)
+    )
+
+@router.message(F.text == LEXICON_RU['staff_button_start_shift'])
+async def process_start_shift(message: Message):
+    user_id = message.from_user.id
+    username = message.from_user.username or "N/A"
+    
+    # Проверяем, является ли пользователь сотрудником
+    if not await is_staff(user_id):
+        await message.answer(LEXICON_RU['staff_not_staff'])
+        return
+    
+    # Переключаем статус смены
+    new_status = await toggle_shift_status(user_id)
+    
+    if new_status:  # Смена начата
+        # Получаем информацию о пользователе для получения должности
+        user = await get_user(user_id)
+        position = user.get('position', 'Сотрудник') if user else 'Сотрудник'
+        
+        await message.answer(LEXICON_RU['staff_shift_started'], reply_markup=staff_panel_keyboard(True))
+        
+        # Отправляем уведомление в чат команды
+        try:
+            notification_text = LEXICON_RU['staff_team_notification_start'].format(
+                username=username,
+                position=position
+            )
+            await message.bot.send_message(
+                chat_id=Config.TEAM_CHAT_ID,
+                text=notification_text
+            )
+        except Exception as e:
+            logger.error(f"Failed to send team chat notification about shift start: {e}")
+
+@router.message(F.text == LEXICON_RU['staff_button_end_shift'])
+async def process_end_shift(message: Message):
+    user_id = message.from_user.id
+    username = message.from_user.username or "N/A"
+    
+    # Проверяем, является ли пользователь сотрудником
+    if not await is_staff(user_id):
+        await message.answer(LEXICON_RU['staff_not_staff'])
+        return
+    
+    # Переключаем статус смены
+    new_status = await toggle_shift_status(user_id)
+    
+    if not new_status:  # Смена закончена
+        # Получаем информацию о пользователе для получения должности
+        user = await get_user(user_id)
+        position = user.get('position', 'Сотрудник') if user else 'Сотрудник'
+        
+        await message.answer(LEXICON_RU['staff_shift_ended'], reply_markup=staff_panel_keyboard(False))
+        
+        # Отправляем уведомление в чат команды
+        try:
+            notification_text = LEXICON_RU['staff_team_notification_end'].format(
+                username=username,
+                position=position
+            )
+            await message.bot.send_message(
+                chat_id=Config.TEAM_CHAT_ID,
+                text=notification_text
+            )
+        except Exception as e:
+            logger.error(f"Failed to send team chat notification about shift end: {e}")
+
+@router.message(F.text == LEXICON_RU['staff_button_exit'])
+async def process_exit_staff_panel(message: Message):
+    user_id = message.from_user.id
+    
+    # Проверяем, является ли пользователь сотрудником
+    if not await is_staff(user_id):
+        await message.answer(LEXICON_RU['staff_not_staff'])
+        return
+    
+    # Возвращаем в главное меню
+    stats = await get_statistics()
+    total_profits_count = stats['total_profits_count'] if stats else 0
+    total_profits_amount = stats['total_profits_amount'] if stats else 0
+    
+    menu_text = LEXICON_RU['main_menu_info'].format(
+        total_profits_count=total_profits_count,
+        total_profits_amount=total_profits_amount
+    )
+    await message.answer(menu_text, reply_markup=main_menu_keyboard())
 
