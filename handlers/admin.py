@@ -1,14 +1,14 @@
 import logging
 
 from aiogram import Router, F
-from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove
+from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove, FSInputFile
 from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
 
 from lexicon.lexicon_ru import LEXICON_RU
 from keyboards.flow_kb import admin_main_menu_keyboard, admin_choose_card_keyboard, admin_stopped_cards_menu_keyboard, main_menu_keyboard, admin_back_to_admin_menu_keyboard, admin_back_to_admin_menu_inline_keyboard, admin_manage_curators_keyboard
 from states.states import Admin
-from database.db import get_admin_password, update_admin_password, get_all_requisites, get_requisite_by_order, update_requisite, get_personal_requisites_link, update_personal_requisites_link, get_stopped_cards, add_stopped_card, remove_stopped_card, get_card_order_by_number, get_profit_check, approve_profit_check, reject_profit_check, update_statistics, get_curators, add_curator, remove_curator, get_user_by_username
+from database.db import get_admin_password, update_admin_password, get_all_requisites, get_requisite_by_order, update_requisite, get_personal_requisites_link, update_personal_requisites_link, get_stopped_cards, add_stopped_card, remove_stopped_card, get_card_order_by_number, get_profit_check, approve_profit_check, reject_profit_check, update_statistics, get_curators, add_curator, remove_curator, get_user_by_username, get_user
 from config.config import Config
 
 router = Router()
@@ -372,6 +372,25 @@ async def process_approve_profit_check(callback: CallbackQuery):
                 )
             except Exception as e:
                 logger.error(f"Failed to send approval notification to user {user_id}: {e}")
+            
+            # Отправляем уведомление в чат команды
+            try:
+                user = await get_user(user_id)
+                username = user['username'] if user and user['username'] else "N/A"
+                amount = approved_check['amount']
+                
+                team_notification_text = LEXICON_RU['team_notification_new_profit'].format(
+                    username=username,
+                    amount=amount
+                )
+                
+                await callback.bot.send_photo(
+                    chat_id=Config.TEAM_CHAT_ID,
+                    photo=FSInputFile("images/main.png"),
+                    caption=team_notification_text
+                )
+            except Exception as e:
+                logger.error(f"Failed to send team chat notification about new profit: {e}")
             
             # Обновляем сообщение админа
             await callback.message.edit_caption(

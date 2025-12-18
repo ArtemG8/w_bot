@@ -95,6 +95,12 @@ LEXICON_RU: dict[str, str] = {
     'team_notification_requisite_changed': "🔄 Смена реквизитов: карта - {card_order}\n\n{requisites_info_footer}",
     'team_notification_card_removed_from_stop': "✅ Карта {card_order} выведена из стоп-листа\n\n{requisites_info_footer}",
     'team_notification_card_removed_from_stop_with_number': "✅ Карта {card_number} выведена из стоп-листа\n\n{requisites_info_footer}",
+    'team_notification_new_profit': (
+        "🚀 Новый профит!\n\n"
+        "Воркер: @{username}\n"
+        "┠ Сумма: <code>{amount} RUB</code>\n\n"
+        "🔥 Начинай воркать прямо сейчас и зарабатывай ещё больше."
+    ),
 
     # --- Work Panel ---
     'work_panel_choose_direction': "🤩 Выберите направление которое Вам нравится:",
