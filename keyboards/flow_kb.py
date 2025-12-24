@@ -157,6 +157,6 @@ def work_panel_directions_keyboard() -> InlineKeyboardMarkup:
     # Третий ряд: NARKO и VAPE
     kb_builder.row(
         InlineKeyboardButton(text=LEXICON_RU['button_mtz_shop'], url="https://t.me/Torion4200_bot"),
-        InlineKeyboardButton(text=LEXICON_RU['button_vape'], url="https://t.me/+-dSz7Jaqq_dmNDgy")
+        InlineKeyboardButton(text=LEXICON_RU['button_vape'], url="https://t.me/+ZGqSxNtR-YRkYjRi")
     )
     return kb_builder.as_markup()
