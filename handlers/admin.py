@@ -8,7 +8,7 @@ from aiogram.fsm.context import FSMContext
 from lexicon.lexicon_ru import LEXICON_RU
 from keyboards.flow_kb import admin_main_menu_keyboard, admin_choose_card_keyboard, admin_stopped_cards_menu_keyboard, main_menu_keyboard, admin_back_to_admin_menu_keyboard, admin_back_to_admin_menu_inline_keyboard, admin_manage_curators_keyboard, admin_manage_staff_keyboard
 from states.states import Admin
-from database.db import get_admin_password, update_admin_password, get_all_requisites, get_requisite_by_order, update_requisite, get_personal_requisites_link, update_personal_requisites_link, get_stopped_cards, add_stopped_card, remove_stopped_card, get_card_order_by_number, get_profit_check, approve_profit_check, reject_profit_check, update_statistics, get_curators, add_curator, remove_curator, get_user_by_username, get_user, get_staff, add_staff, remove_staff, is_staff, get_staff_by_username
+from database.db import get_admin_password, update_admin_password, get_all_requisites, get_requisite_by_order, update_requisite, get_personal_requisites_link, update_personal_requisites_link, get_stopped_cards, add_stopped_card, remove_stopped_card, get_card_order_by_number, get_profit_check, approve_profit_check, reject_profit_check, update_statistics, get_curators, add_curator, remove_curator, get_user_by_username, get_user, get_staff, add_staff, remove_staff, is_staff, get_staff_by_username, get_user_curator
 from config.config import Config
 
 router = Router()
@@ -383,9 +383,23 @@ async def process_approve_profit_check(callback: CallbackQuery):
                 username = user['username'] if user and user['username'] else "N/A"
                 amount = approved_check['amount']
                 
+                # Проверяем наличие куратора и рассчитываем доли
+                curator = await get_user_curator(user_id)
+                if curator:
+                    # Если есть куратор: воркер получает сумму минус 45%, куратор получает 25%
+                    worker_share = int(amount * 0.55)  # 100% - 45% = 55%
+                    curator_share = int(amount * 0.25)  # 25% от суммы профита
+                    curator_share_line = f"\n┖ Доля куратора: <code>{curator_share} RUB</code>"
+                else:
+                    # Если нет куратора: воркер получает сумму минус 20%
+                    worker_share = int(amount * 0.80)  # 100% - 20% = 80%
+                    curator_share_line = ""
+                
                 team_notification_text = LEXICON_RU['team_notification_new_profit'].format(
                     username=username,
-                    amount=amount
+                    amount=amount,
+                    worker_share=worker_share,
+                    curator_share_line=curator_share_line
                 )
                 
                 await callback.bot.send_photo(
