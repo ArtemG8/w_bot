@@ -9,7 +9,7 @@ from aiogram.fsm.context import FSMContext
 from lexicon.lexicon_ru import LEXICON_RU
 from keyboards.flow_kb import continue_keyboard, experience_keyboard, main_menu_keyboard, profile_inline_keyboard, work_panel_directions_keyboard, main_menu_inline_keyboard, cancel_keyboard, curators_selection_keyboard, staff_panel_keyboard
 from states.states import Registration, Profile, ProfitCheck
-from database.db import add_user, get_user, update_user_registration_data, update_user_unique_tag, get_all_requisites, get_personal_requisites_link, get_stopped_cards, get_statistics, create_profit_check, get_user_profit_statistics, get_curators, set_user_curator, get_user_curator, is_curator, is_staff, toggle_shift_status, get_staff_shift_status
+from database.db import add_user, get_user, update_user_registration_data, update_user_unique_tag, get_all_requisites, get_personal_requisites_link, get_stopped_cards, get_statistics, create_profit_check, get_user_profit_statistics, get_curators, set_user_curator, get_user_curator, is_curator, is_staff, toggle_shift_status, get_staff_shift_status, is_banned
 from config.config import Config
 
 router = Router()
@@ -258,12 +258,25 @@ async def process_work_trade_callback(callback: CallbackQuery):
 @router.callback_query(F.data == "curators")
 async def process_curators_callback(callback: CallbackQuery):
     await callback.answer() # Убираем индикатор загрузки
-    curators = await get_curators()
-    if curators:
-        curator_usernames = [curator['username'] for curator in curators]
-        await callback.message.answer(LEXICON_RU['curator_selection_message'], reply_markup=curators_selection_keyboard(curator_usernames))
+    
+    # Проверяем, есть ли у пользователя уже куратор
+    user_id = callback.from_user.id
+    curator_info = await get_user_curator(user_id)
+    
+    if curator_info:
+        # Пользователь уже прикреплен к куратору
+        curator_username = curator_info['username']
+        await callback.message.answer(
+            LEXICON_RU['curator_already_attached'].format(curator_username=curator_username)
+        )
     else:
-        await callback.message.answer("На данный момент кураторы отсутствуют.")
+        # Пользователь не прикреплен, показываем список кураторов
+        curators = await get_curators()
+        if curators:
+            curator_usernames = [curator['username'] for curator in curators]
+            await callback.message.answer(LEXICON_RU['curator_selection_message'], reply_markup=curators_selection_keyboard(curator_usernames))
+        else:
+            await callback.message.answer("На данный момент кураторы отсутствуют.")
 
 @router.callback_query(F.data.startswith("select_curator_"))
 async def process_select_curator_callback(callback: CallbackQuery):

@@ -63,7 +63,8 @@ def admin_main_menu_keyboard() -> ReplyKeyboardMarkup:
         KeyboardButton(text=LEXICON_RU['admin_button_change_password'])
     )
     kb_builder.row(
-        KeyboardButton(text=LEXICON_RU['admin_button_edit_personal_link'])
+        KeyboardButton(text=LEXICON_RU['admin_button_edit_personal_link']),
+        KeyboardButton(text=LEXICON_RU['admin_button_manage_bans'])
     )
     kb_builder.row(
         KeyboardButton(text=LEXICON_RU['admin_button_back_to_bot_main_menu'])
@@ -118,9 +119,36 @@ def admin_manage_curators_keyboard() -> ReplyKeyboardMarkup:
         KeyboardButton(text=LEXICON_RU['admin_button_remove_curator'])
     )
     kb_builder.row(
+        KeyboardButton(text=LEXICON_RU['admin_button_view_curator_students']),
+        KeyboardButton(text=LEXICON_RU['admin_button_unlink_student'])
+    )
+    kb_builder.row(
         KeyboardButton(text=LEXICON_RU['admin_button_back_to_admin_main_menu'])
     )
     return kb_builder.as_markup(resize_keyboard=True)
+
+def admin_unlink_students_keyboard(students: list) -> InlineKeyboardMarkup:
+    """Создает inline клавиатуру для выбора пользователя для отключения от куратора"""
+    kb_builder = InlineKeyboardBuilder()
+    for student in students:
+        username = student['student_username'] if student['student_username'] else f"ID: {student['student_id']}"
+        first_name = student['student_first_name'] if student['student_first_name'] else ""
+        button_text = f"@{username}" if student['student_username'] else f"ID: {student['student_id']}"
+        if first_name:
+            button_text += f" ({first_name})"
+        kb_builder.row(
+            InlineKeyboardButton(
+                text=button_text,
+                callback_data=f"unlink_student_{student['student_id']}"
+            )
+        )
+    kb_builder.row(
+        InlineKeyboardButton(
+            text=LEXICON_RU['admin_button_back_to_admin_main_menu'],
+            callback_data="admin_main_menu"
+        )
+    )
+    return kb_builder.as_markup()
 
 def admin_manage_staff_keyboard() -> ReplyKeyboardMarkup:
     kb_builder = ReplyKeyboardBuilder()
@@ -141,6 +169,43 @@ def staff_panel_keyboard(is_on_shift: bool) -> ReplyKeyboardMarkup:
         kb_builder.add(KeyboardButton(text=LEXICON_RU['staff_button_start_shift']))
     kb_builder.row(KeyboardButton(text=LEXICON_RU['staff_button_exit']))
     return kb_builder.as_markup(resize_keyboard=True)
+
+def admin_manage_bans_keyboard() -> ReplyKeyboardMarkup:
+    kb_builder = ReplyKeyboardBuilder()
+    kb_builder.row(
+        KeyboardButton(text=LEXICON_RU['admin_button_ban_user']),
+        KeyboardButton(text=LEXICON_RU['admin_button_view_banned'])
+    )
+    kb_builder.row(
+        KeyboardButton(text=LEXICON_RU['admin_button_unban_user'])
+    )
+    kb_builder.row(
+        KeyboardButton(text=LEXICON_RU['admin_button_back_to_admin_main_menu'])
+    )
+    return kb_builder.as_markup(resize_keyboard=True)
+
+def admin_unban_users_keyboard(banned_users: list) -> InlineKeyboardMarkup:
+    """Создает inline клавиатуру для выбора пользователя для разблокировки"""
+    kb_builder = InlineKeyboardBuilder()
+    for user in banned_users:
+        username = user['username'] if user['username'] else f"ID: {user['user_id']}"
+        first_name = user['first_name'] if user['first_name'] else ""
+        button_text = f"@{username}" if user['username'] else f"ID: {user['user_id']}"
+        if first_name:
+            button_text += f" ({first_name})"
+        kb_builder.row(
+            InlineKeyboardButton(
+                text=button_text,
+                callback_data=f"unban_user_{user['user_id']}"
+            )
+        )
+    kb_builder.row(
+        InlineKeyboardButton(
+            text=LEXICON_RU['admin_button_back_to_admin_main_menu'],
+            callback_data="admin_main_menu"
+        )
+    )
+    return kb_builder.as_markup()
 
 # --- Work Panel Keyboards ---
 def work_panel_directions_keyboard() -> InlineKeyboardMarkup:

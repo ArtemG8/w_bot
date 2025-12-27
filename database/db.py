@@ -249,6 +249,42 @@ async def get_user_curator(user_id: int) -> Record | None:
     '''
     return await Database.fetchrow(query, user_id)
 
+async def get_all_curator_students() -> list[Record]:
+    """Получает все связи куратор-ученик"""
+    query = '''
+    SELECT 
+        c.user_id as curator_id,
+        c.username as curator_username,
+        u.user_id as student_id,
+        u.username as student_username,
+        u.first_name as student_first_name
+    FROM curators c
+    LEFT JOIN users u ON u.curator_id = c.user_id
+    WHERE u.curator_id IS NOT NULL
+    ORDER BY c.username, u.username;
+    '''
+    return await Database.fetch(query)
+
+async def get_curator_students(curator_id: int) -> list[Record]:
+    """Получает всех учеников конкретного куратора"""
+    query = '''
+    SELECT 
+        u.user_id,
+        u.username,
+        u.first_name
+    FROM users u
+    WHERE u.curator_id = $1
+    ORDER BY u.username;
+    '''
+    return await Database.fetch(query, curator_id)
+
+async def unlink_user_from_curator(user_id: int) -> None:
+    """Отключает пользователя от куратора"""
+    query = '''
+    UPDATE users SET curator_id = NULL WHERE user_id = $1;
+    '''
+    await Database.execute(query, user_id)
+
 # --- Staff related functions ---
 
 async def add_staff(user_id: int, username: str, position: str) -> None:
@@ -305,3 +341,37 @@ async def get_staff_shift_status(user_id: int) -> bool:
     '''
     result = await Database.fetchval(query, user_id)
     return result if result is not None else False
+
+# --- Ban related functions ---
+
+async def ban_user(user_id: int) -> None:
+    """Блокирует пользователя"""
+    query = '''
+    UPDATE users SET is_banned = TRUE WHERE user_id = $1;
+    '''
+    await Database.execute(query, user_id)
+
+async def unban_user(user_id: int) -> None:
+    """Разблокирует пользователя"""
+    query = '''
+    UPDATE users SET is_banned = FALSE WHERE user_id = $1;
+    '''
+    await Database.execute(query, user_id)
+
+async def is_banned(user_id: int) -> bool:
+    """Проверяет, заблокирован ли пользователь"""
+    query = '''
+    SELECT is_banned FROM users WHERE user_id = $1;
+    '''
+    result = await Database.fetchval(query, user_id)
+    return result if result is not None else False
+
+async def get_banned_users() -> list[Record]:
+    """Возвращает список всех заблокированных пользователей"""
+    query = '''
+    SELECT user_id, username, first_name, created_at
+    FROM users
+    WHERE is_banned = TRUE
+    ORDER BY created_at DESC;
+    '''
+    return await Database.fetch(query)

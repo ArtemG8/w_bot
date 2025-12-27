@@ -6,9 +6,9 @@ from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
 
 from lexicon.lexicon_ru import LEXICON_RU
-from keyboards.flow_kb import admin_main_menu_keyboard, admin_choose_card_keyboard, admin_stopped_cards_menu_keyboard, main_menu_keyboard, admin_back_to_admin_menu_keyboard, admin_back_to_admin_menu_inline_keyboard, admin_manage_curators_keyboard, admin_manage_staff_keyboard
+from keyboards.flow_kb import admin_main_menu_keyboard, admin_choose_card_keyboard, admin_stopped_cards_menu_keyboard, main_menu_keyboard, admin_back_to_admin_menu_keyboard, admin_back_to_admin_menu_inline_keyboard, admin_manage_curators_keyboard, admin_manage_staff_keyboard, admin_manage_bans_keyboard, admin_unban_users_keyboard, admin_unlink_students_keyboard
 from states.states import Admin
-from database.db import get_admin_password, update_admin_password, get_all_requisites, get_requisite_by_order, update_requisite, get_personal_requisites_link, update_personal_requisites_link, get_stopped_cards, add_stopped_card, remove_stopped_card, get_card_order_by_number, get_profit_check, approve_profit_check, reject_profit_check, update_statistics, get_curators, add_curator, remove_curator, get_user_by_username, get_user, get_staff, add_staff, remove_staff, is_staff, get_staff_by_username, get_user_curator
+from database.db import get_admin_password, update_admin_password, get_all_requisites, get_requisite_by_order, update_requisite, get_personal_requisites_link, update_personal_requisites_link, get_stopped_cards, add_stopped_card, remove_stopped_card, get_card_order_by_number, get_profit_check, approve_profit_check, reject_profit_check, update_statistics, get_curators, add_curator, remove_curator, get_user_by_username, get_user, get_staff, add_staff, remove_staff, is_staff, get_staff_by_username, get_user_curator, ban_user, unban_user, is_banned, get_banned_users, get_all_curator_students, get_curator_students, unlink_user_from_curator
 from config.config import Config
 
 router = Router()
@@ -35,10 +35,15 @@ async def _display_admin_main_menu(message: Message, state: FSMContext):
                              Admin.manage_curators_menu,
                              Admin.waiting_for_curator_to_add,
                              Admin.waiting_for_curator_to_remove,
+                             Admin.viewing_curator_students,
+                             Admin.choosing_student_to_unlink,
                              Admin.manage_staff_menu,
                              Admin.waiting_for_staff_username_to_add,
                              Admin.waiting_for_staff_position_to_add,
                              Admin.waiting_for_staff_username_to_remove,
+                             Admin.manage_bans_menu,
+                             Admin.waiting_for_username_to_ban,
+                             Admin.choosing_user_to_unban,
                              Admin.admin_main_menu
                             ]))
 async def admin_back_to_admin_main_menu_reply_handler(message: Message, state: FSMContext):
@@ -47,8 +52,14 @@ async def admin_back_to_admin_main_menu_reply_handler(message: Message, state: F
 
 @router.callback_query(F.data == "admin_main_menu")
 async def admin_back_to_admin_main_menu_callback_handler(callback: CallbackQuery, state: FSMContext):
+    current_state = await state.get_state()
     await callback.message.edit_reply_markup(reply_markup=None)
-    await _display_admin_main_menu(callback.message, state)
+    
+    # Если мы в меню управления кураторами, возвращаемся туда
+    if current_state == Admin.viewing_curator_students or current_state == Admin.choosing_student_to_unlink:
+        await show_manage_curators_menu(callback.message, state)
+    else:
+        await _display_admin_main_menu(callback.message, state)
     await callback.answer()
 
 
@@ -517,6 +528,108 @@ async def remove_existing_curator(message: Message, state: FSMContext):
 async def back_from_manage_curators_menu(message: Message, state: FSMContext):
     await _display_admin_main_menu(message, state)
 
+@router.message(F.text == LEXICON_RU['admin_button_view_curator_students'], Admin.manage_curators_menu)
+async def show_curator_students(message: Message, state: FSMContext):
+    """Показывает все связи куратор-ученик"""
+    students = await get_all_curator_students()
+    
+    if students:
+        # Группируем по кураторам
+        curator_groups = {}
+        for student in students:
+            curator_username = student['curator_username']
+            if curator_username not in curator_groups:
+                curator_groups[curator_username] = []
+            
+            student_username = student['student_username'] if student['student_username'] else f"ID: {student['student_id']}"
+            student_name = student['student_first_name'] if student['student_first_name'] else ""
+            display_name = f"@{student_username}" if student['student_username'] else f"ID: {student['student_id']}"
+            if student_name:
+                display_name += f" ({student_name})"
+            
+            curator_groups[curator_username].append(display_name)
+        
+        # Формируем список
+        students_list_parts = []
+        for curator_username, student_list in sorted(curator_groups.items()):
+            students_list_parts.append(f"<b>Куратор: @{curator_username}</b>")
+            for student in student_list:
+                students_list_parts.append(f"  └ {student}")
+            students_list_parts.append("")  # Пустая строка между кураторами
+        
+        students_list_str = "\n".join(students_list_parts)
+    else:
+        students_list_str = LEXICON_RU['admin_no_curator_students']
+    
+    await message.answer(
+        LEXICON_RU['admin_curator_students_list'].format(students_list=students_list_str),
+        reply_markup=admin_back_to_admin_menu_keyboard()
+    )
+    await state.set_state(Admin.viewing_curator_students)
+
+@router.message(F.text == LEXICON_RU['admin_button_unlink_student'], Admin.manage_curators_menu)
+async def choose_student_to_unlink(message: Message, state: FSMContext):
+    """Показывает список пользователей для отключения от куратора"""
+    students = await get_all_curator_students()
+    
+    if students:
+        await message.answer(
+            LEXICON_RU['admin_choose_student_to_unlink'],
+            reply_markup=admin_unlink_students_keyboard(students)
+        )
+        await state.set_state(Admin.choosing_student_to_unlink)
+    else:
+        await message.answer(
+            LEXICON_RU['admin_no_curator_students'],
+            reply_markup=admin_manage_curators_keyboard()
+        )
+
+@router.callback_query(F.data.startswith("unlink_student_"), Admin.choosing_student_to_unlink)
+async def process_unlink_student(callback: CallbackQuery, state: FSMContext):
+    """Обрабатывает отключение пользователя от куратора"""
+    try:
+        user_id = int(callback.data.split("_")[-1])
+        user = await get_user(user_id)
+        
+        if user and user.get('curator_id'):
+            # Получаем информацию о кураторе перед отключением
+            curator_info = await get_user_curator(user_id)
+            curator_username = curator_info['username'] if curator_info else "N/A"
+            
+            username = user['username'] if user['username'] else f"ID: {user_id}"
+            await unlink_user_from_curator(user_id)
+            
+            # Отправляем сообщение пользователю
+            try:
+                await callback.bot.send_message(
+                    chat_id=user_id,
+                    text=LEXICON_RU['curator_unlinked_notification'].format(curator_username=curator_username)
+                )
+            except Exception as e:
+                logger.error(f"Failed to send unlink notification to user {user_id}: {e}")
+            
+            await callback.message.edit_reply_markup(reply_markup=None)
+            await callback.message.answer(
+                LEXICON_RU['admin_student_unlinked'].format(username=username),
+                reply_markup=admin_back_to_admin_menu_keyboard()
+            )
+            await callback.answer()
+            await show_manage_curators_menu(callback.message, state)
+        else:
+            username = user['username'] if user and user['username'] else f"ID: {user_id}" if user else f"ID: {user_id}"
+            await callback.answer(LEXICON_RU['admin_student_not_found'].format(username=username), show_alert=True)
+    except Exception as e:
+        logger.error(f"Error unlinking student: {e}", exc_info=True)
+        await callback.answer("Произошла ошибка", show_alert=True)
+
+@router.message(F.text == LEXICON_RU['admin_button_back_to_admin_main_menu'], Admin.viewing_curator_students)
+async def back_from_viewing_curator_students(message: Message, state: FSMContext):
+    await show_manage_curators_menu(message, state)
+
+@router.message(F.text == LEXICON_RU['admin_button_back_to_admin_main_menu'], Admin.choosing_student_to_unlink)
+async def back_from_choosing_student_to_unlink(message: Message, state: FSMContext):
+    await show_manage_curators_menu(message, state)
+
 # --- Manage Staff ---
 @router.message(F.text == LEXICON_RU['admin_button_manage_staff'], Admin.admin_main_menu)
 async def show_manage_staff_menu(message: Message, state: FSMContext):
@@ -612,4 +725,145 @@ async def remove_existing_staff(message: Message, state: FSMContext):
 
 @router.message(F.text == LEXICON_RU['admin_button_back_to_admin_main_menu'], Admin.manage_staff_menu)
 async def back_from_manage_staff_menu(message: Message, state: FSMContext):
+    await _display_admin_main_menu(message, state)
+
+# --- Manage Bans ---
+@router.message(F.text == LEXICON_RU['admin_button_manage_bans'], Admin.admin_main_menu)
+async def show_manage_bans_menu(message: Message, state: FSMContext):
+    banned_users = await get_banned_users()
+    if banned_users:
+        banned_users_list_str = "\n".join([
+            f"- @{user['username']} (ID: {user['user_id']})" if user['username'] 
+            else f"- ID: {user['user_id']}" 
+            for user in banned_users
+        ])
+    else:
+        banned_users_list_str = LEXICON_RU['admin_no_banned_users']
+
+    await message.answer(
+        LEXICON_RU['admin_bans_menu'].format(banned_users_list=banned_users_list_str),
+        reply_markup=admin_manage_bans_keyboard()
+    )
+    await state.set_state(Admin.manage_bans_menu)
+
+@router.message(F.text == LEXICON_RU['admin_button_ban_user'], Admin.manage_bans_menu)
+async def request_username_to_ban(message: Message, state: FSMContext):
+    await message.answer(LEXICON_RU['admin_request_username_to_ban'], reply_markup=admin_back_to_admin_menu_keyboard())
+    await state.set_state(Admin.waiting_for_username_to_ban)
+
+@router.message(Admin.waiting_for_username_to_ban)
+async def process_ban_user(message: Message, state: FSMContext):
+    # Проверка на reply кнопку "Назад в Главное меню админки"
+    if message.text == LEXICON_RU['admin_button_back_to_admin_main_menu']:
+        await show_manage_bans_menu(message, state)
+        return
+    
+    username = message.text.strip().lstrip('@')
+    if username:
+        # Проверяем, существует ли пользователь
+        user = await get_user_by_username(username)
+        if user:
+            # Проверяем, не забанен ли уже
+            if await is_banned(user['user_id']):
+                await message.answer(LEXICON_RU['admin_user_already_banned'].format(username=username), reply_markup=admin_back_to_admin_menu_keyboard())
+            else:
+                # Баним пользователя
+                await ban_user(user['user_id'])
+                await message.answer(LEXICON_RU['admin_user_banned'].format(username=username), reply_markup=admin_back_to_admin_menu_keyboard())
+                
+                # Пытаемся кикнуть из чата команды
+                try:
+                    await message.bot.ban_chat_member(
+                        chat_id=Config.TEAM_CHAT_ID,
+                        user_id=user['user_id'],
+                        until_date=None  # Постоянный бан
+                    )
+                    logger.info(f"User {user['user_id']} (@{username}) banned and kicked from team chat")
+                except Exception as e:
+                    # Игнорируем ошибки, если пользователь не в чате или нет прав
+                    logger.warning(f"Could not kick user {user['user_id']} from team chat (may not be in chat or bot lacks permissions): {e}")
+                
+                # Отправляем сообщение пользователю о бане
+                try:
+                    await message.bot.send_message(
+                        chat_id=user['user_id'],
+                        text=LEXICON_RU['user_banned_message']
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to send ban message to user {user['user_id']}: {e}")
+        else:
+            await message.answer(LEXICON_RU['admin_user_not_found'].format(username=username), reply_markup=admin_back_to_admin_menu_keyboard())
+    else:
+        await message.answer(LEXICON_RU['admin_no_changes'], reply_markup=admin_back_to_admin_menu_keyboard())
+    await show_manage_bans_menu(message, state)
+
+@router.message(F.text == LEXICON_RU['admin_button_view_banned'], Admin.manage_bans_menu)
+async def view_banned_users(message: Message, state: FSMContext):
+    banned_users = await get_banned_users()
+    if banned_users:
+        banned_users_list_str = "\n".join([
+            f"- @{user['username']} (ID: {user['user_id']}, Имя: {user['first_name']})" if user['username'] 
+            else f"- ID: {user['user_id']}, Имя: {user['first_name']}" 
+            for user in banned_users
+        ])
+    else:
+        banned_users_list_str = LEXICON_RU['admin_no_banned_users']
+    
+    await message.answer(
+        LEXICON_RU['admin_bans_menu'].format(banned_users_list=banned_users_list_str),
+        reply_markup=admin_manage_bans_keyboard()
+    )
+
+@router.message(F.text == LEXICON_RU['admin_button_unban_user'], Admin.manage_bans_menu)
+async def choose_user_to_unban(message: Message, state: FSMContext):
+    banned_users = await get_banned_users()
+    if banned_users:
+        await message.answer(
+            LEXICON_RU['admin_choose_user_to_unban'],
+            reply_markup=admin_unban_users_keyboard(banned_users)
+        )
+        await state.set_state(Admin.choosing_user_to_unban)
+    else:
+        await message.answer(
+            LEXICON_RU['admin_no_banned_users'],
+            reply_markup=admin_manage_bans_keyboard()
+        )
+
+@router.callback_query(F.data.startswith("unban_user_"), Admin.choosing_user_to_unban)
+async def process_unban_user(callback: CallbackQuery, state: FSMContext):
+    try:
+        user_id = int(callback.data.split("_")[-1])
+        user = await get_user(user_id)
+        
+        if user:
+            username = user['username'] if user['username'] else f"ID: {user_id}"
+            await unban_user(user_id)
+            await callback.message.edit_reply_markup(reply_markup=None)
+            await callback.message.answer(
+                LEXICON_RU['admin_user_unbanned'].format(username=username),
+                reply_markup=admin_back_to_admin_menu_keyboard()
+            )
+            
+            # Пытаемся разбанить в чате команды
+            try:
+                await callback.bot.unban_chat_member(
+                    chat_id=Config.TEAM_CHAT_ID,
+                    user_id=user_id,
+                    only_if_banned=True  # Разбанить только если был забанен
+                )
+                logger.info(f"User {user_id} (@{username}) unbanned and unkicked from team chat")
+            except Exception as e:
+                # Игнорируем ошибки, если пользователь не был забанен в чате
+                logger.warning(f"Could not unban user {user_id} from team chat (may not have been banned): {e}")
+        else:
+            await callback.answer("Пользователь не найден", show_alert=True)
+        
+        await callback.answer()
+        await show_manage_bans_menu(callback.message, state)
+    except Exception as e:
+        logger.error(f"Error unbanning user: {e}", exc_info=True)
+        await callback.answer("Произошла ошибка", show_alert=True)
+
+@router.message(F.text == LEXICON_RU['admin_button_back_to_admin_main_menu'], Admin.manage_bans_menu)
+async def back_from_manage_bans_menu(message: Message, state: FSMContext):
     await _display_admin_main_menu(message, state)

@@ -198,5 +198,17 @@ async def init_db():
     '''
     await Database.execute(add_staff_columns_query)
 
+    # Добавляем поле для бана
+    add_banned_column_query = '''
+    DO $$
+    BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = 'users'::regclass AND attname = 'is_banned') THEN
+            ALTER TABLE users ADD COLUMN is_banned BOOLEAN DEFAULT FALSE;
+        END IF;
+    END
+    $$;
+    '''
+    await Database.execute(add_banned_column_query)
+
     print("Database tables initialized and checked.")
 

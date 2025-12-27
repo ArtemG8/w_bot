@@ -40,9 +40,16 @@ class Admin(StatesGroup):
     manage_curators_menu = State()
     waiting_for_curator_to_add = State()
     waiting_for_curator_to_remove = State()
+    viewing_curator_students = State()
+    choosing_student_to_unlink = State()
 
     # Manage staff
     manage_staff_menu = State()
     waiting_for_staff_username_to_add = State()
     waiting_for_staff_position_to_add = State()
     waiting_for_staff_username_to_remove = State()
+
+    # Manage bans
+    manage_bans_menu = State()
+    waiting_for_username_to_ban = State()
+    choosing_user_to_unban = State()
