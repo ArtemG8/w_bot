@@ -97,7 +97,7 @@ LEXICON_RU: dict[str, str] = {
     'team_notification_card_removed_from_stop_with_number': "✅ Карта {card_number} выведена из стоп-листа\n\n{requisites_info_footer}",
     'team_notification_new_profit': (
         "🚀 Новый профит!\n\n"
-        "Воркер: @{username}\n"
+        "Воркер: {worker_display}\n"
         "┠ Сумма: <code>{amount} RUB</code>\n"
         "┖ Доля воркера: <code>{worker_share} RUB</code>{curator_share_line}\n\n"
         "🔥 Начинай воркать прямо сейчас и зарабатывай ещё больше."

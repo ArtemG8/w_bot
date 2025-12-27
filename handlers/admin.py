@@ -392,6 +392,14 @@ async def process_approve_profit_check(callback: CallbackQuery):
             try:
                 user = await get_user(user_id)
                 username = user['username'] if user and user['username'] else "N/A"
+                unique_tag = user.get('unique_tag') if user else None
+                
+                # Формируем отображение воркера: если есть тег, используем его, иначе username
+                if unique_tag:
+                    worker_display = f"#{unique_tag}"
+                else:
+                    worker_display = f"@{username}"
+                
                 amount = approved_check['amount']
                 
                 # Проверяем наличие куратора и рассчитываем доли
@@ -407,7 +415,7 @@ async def process_approve_profit_check(callback: CallbackQuery):
                     curator_share_line = ""
                 
                 team_notification_text = LEXICON_RU['team_notification_new_profit'].format(
-                    username=username,
+                    worker_display=worker_display,
                     amount=amount,
                     worker_share=worker_share,
                     curator_share_line=curator_share_line
